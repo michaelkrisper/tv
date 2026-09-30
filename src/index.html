@@ -357,8 +357,17 @@ addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && list) { renderDays(); refresh(); }
 });
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data === 'list') refresh(); });
+  const sw = navigator.serviceWorker;
+  const reg = sw.register('sw.js');
+  sw.addEventListener('message', (e) => { if (e.data === 'list') refresh(); });
+  // Installierte Apps bleiben im Speicher und laden beim Wiederöffnen nicht
+  // neu – also selbst nach einer neuen Version fragen und dann einmal neu laden.
+  // Nicht beim allerersten Besuch: da übernimmt der Worker nur erstmals.
+  const hadController = !!sw.controller;
+  sw.addEventListener('controllerchange', () => { if (hadController) location.reload(); });
+  addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') reg.then((r) => r.update()).catch(() => {});
+  });
 }
 </script>
 </body>
