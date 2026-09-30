@@ -26,7 +26,7 @@ Push und zweimal täglich:
 4. lädt jedes 20:15-Vorschaubild einmal, schneidet es auf 16:9 zu und speichert
    es als AVIF (Thumbnail ~5 KB, Detailbild ~30 KB),
 5. holt die Senderlogos aus [tv-logo/tv-logos](https://github.com/tv-logo/tv-logos)
-   und legt weiße Logos auf ein dunkles Plättchen,
+   (transparent auf dem Bild; fast schwarze Logos bekommen einen hellen Schein),
 6. veröffentlicht alles auf GitHub Pages.
 
 Die Bilder der Jetzt-Ansicht lädt die App live: fairu skaliert selbst, alles

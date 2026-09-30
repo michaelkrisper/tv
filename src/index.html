@@ -51,9 +51,12 @@ main::-webkit-scrollbar{display:none}
 img.th,img.hero{opacity:0;transition:opacity .2s}
 img.ok{opacity:1}
 .badge{position:absolute;left:0;top:0;max-width:100%;padding:2px 5px;border-radius:8px 0 6px 0;background:#000b;color:#fff;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lg{position:absolute;left:3px;top:3px;display:flex;align-items:center;height:18px;padding:2px 4px;border-radius:4px;background:#fff;box-shadow:0 1px 3px #0005}
-.lg.d{background:#23262f}
-.lg img{height:100%;width:auto;max-width:56px;display:block}
+/* Logos transparent auf dem Bild: Schatten und eine abgedunkelte Ecke tragen
+   weiße und farbige Logos; fast schwarze (k) bekommen einen hellen Schein. */
+.lg{position:absolute;z-index:1;left:4px;top:4px;display:flex;align-items:center;height:16px}
+.lg img{height:100%;width:auto;max-width:58px;display:block;filter:drop-shadow(0 0 1px #000a) drop-shadow(0 1px 3px #000c)}
+.lg.k img{filter:drop-shadow(0 0 1px #fffc) drop-shadow(0 0 4px #fffa)}
+.tw.sc::after{content:"";position:absolute;inset:0;border-radius:8px;background:radial-gradient(110% 80% at 0 0,#000a,transparent 60%);pointer-events:none}
 .pg{position:absolute;left:0;right:0;bottom:0;height:3px;background:#0009;border-radius:0 0 8px 8px;overflow:hidden}
 .pg i{display:block;height:100%;background:var(--acc)}
 .pg[hidden]{display:none}
@@ -88,7 +91,7 @@ dialog[open]::backdrop{animation:fade .3s}
 .ht h2{font-size:28px;line-height:1.12;font-weight:800;letter-spacing:-.3px;margin:6px 0 5px;text-wrap:balance;text-shadow:0 1px 14px #000a}
 @media (prefers-color-scheme:light){.ht h2{text-shadow:0 1px 12px #fffc}}
 .ht .m{font-size:13.5px}
-.ht .lg{position:static;display:inline-flex;height:22px}
+.ht .lg{position:static;display:inline-flex;height:24px}
 .ht .pg:not([hidden]){display:block}
 .ht .pg{position:static;margin-top:10px;height:3px;border-radius:2px;background:var(--line)}
 .hw.no{background:none;padding-top:calc(env(safe-area-inset-top) + 52px)}
@@ -112,8 +115,7 @@ dialog[open]::backdrop{animation:fade .3s}
 .chl{list-style:none;padding:0}
 .chl li{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 8px;background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:6px;min-height:48px;touch-action:pan-y}
 .chl li>span:not(.lg){flex:1}
-.chl .lg{position:static;flex:none;width:52px;height:24px;justify-content:center;box-shadow:none;border:1px solid var(--line)}
-.chl .lg.no{background:none;border-color:transparent}
+.chl .lg{position:static;flex:none;width:52px;height:20px;justify-content:center}
 .chl li.drag{opacity:.9;box-shadow:0 6px 20px #0008;position:relative;z-index:2}
 .handle{touch-action:none;cursor:grab;color:var(--dim)}
 .add li{cursor:pointer}
@@ -213,8 +215,7 @@ function genreChip(genre) {
   return `<span class="g" style="--h:${hit[1]};--s:${hit[2]}"><svg viewBox="0 0 24 24">${hit[3]}</svg><span>${esc(genre)}</span></span>`;
 }
 
-// Senderlogo auf hellem oder dunklem Plättchen (weiße Logos brauchen dunkel);
-// ohne Logo der Name als Textbadge.
+// Senderlogo transparent auf dem Bild; ohne Logo der Name als Textbadge.
 function channelMark(id) {
   const name = esc(names.get(id));
   const l = logos.get(id);
@@ -283,7 +284,8 @@ function rowHtml(id, it, i) {
   const cors = it.live ? ' crossorigin="anonymous"' : '';
   const th = it.th ? `<img class="th" src="${it.th}" ${prio}${cors} decoding="async" width="320" height="180" alt="">` : '<div class="th"></div>';
   const tip = it.rating >= TIP;
-  return `<button class="row" data-id="${id}"><div class="tw${tip ? ' tip' : ''}">${th}${mark}${tip ? '<span class="tipl">Tipp</span>' : ''}${progressBar(it)}</div>`
+  const scrim = logos.get(id) === 'w' ? ' sc' : '';
+  return `<button class="row" data-id="${id}"><div class="tw${scrim}${tip ? ' tip' : ''}">${th}${mark}${tip ? '<span class="tipl">Tipp</span>' : ''}${progressBar(it)}</div>`
     + `<div><span class="t">${esc(it.title)}</span><span class="m ml"><span>${it.genre ? genreChip(it.genre) : ''}</span><span class="tr">${rightText(it)}</span></span></div></button>`;
 }
 

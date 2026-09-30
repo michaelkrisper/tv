@@ -275,18 +275,21 @@ async function logoIndex() {
   return index;
 }
 
-// Mittlere Helligkeit der sichtbaren Pixel: weiße Logos brauchen ein dunkles
-// Plättchen, alle anderen ein helles.
-async function isLightLogo(png) {
-  const { data } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  let lum = 0;
+// Logos stehen transparent auf dem Vorschaubild, mit dunklem Schatten. Das
+// trägt weiße und farbige Logos; nur überwiegend fast schwarze brauchen
+// stattdessen einen hellen Schein ('k').
+async function logoTone(file) {
+  const { data } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  let black = 0;
   let weight = 0;
   for (let i = 0; i < data.length; i += 4) {
     const a = data[i + 3] / 255;
-    lum += (a * (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2])) / 255;
+    const max = Math.max(data[i], data[i + 1], data[i + 2]);
+    const min = Math.min(data[i], data[i + 1], data[i + 2]);
+    if (max < 70 && max - min < 30) black += a;
     weight += a;
   }
-  return weight > 0 && lum / weight > 0.75;
+  return weight > 0 && black / weight > 0.4 ? 'k' : 'w';
 }
 
 async function logos(channels) {
@@ -305,7 +308,7 @@ async function logos(channels) {
     if (!hit) return;
     const file = join(CACHE, 'logo', `${id}.webp`);
     try {
-      if (!(await exists(`${file}.json`))) {
+      if (!(await exists(file))) {
         const res = await fetch(LOGO_RAW + hit.path, { signal: AbortSignal.timeout(30_000) });
         if (!res.ok) throw new Error(res.status);
         const trimmed = await sharp(Buffer.from(await res.arrayBuffer()))
@@ -316,11 +319,9 @@ async function logos(channels) {
           .resize({ height: 48, width: 160, fit: 'inside' })
           .webp({ quality: 90 })
           .toFile(file);
-        await writeFile(`${file}.json`, JSON.stringify({ dark: await isLightLogo(trimmed) }));
       }
-      const { dark } = JSON.parse(await readFile(`${file}.json`, 'utf8'));
       await cp(file, join(DIST, 'img', `logo-${id}.webp`));
-      channels.get(id).logo = dark ? 'd' : 'l';
+      channels.get(id).logo = await logoTone(file);
       found++;
     } catch (e) {
       console.warn(`Logo ${id}: ${e.message}`);
