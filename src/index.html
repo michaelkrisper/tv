@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<script>if(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform)))document.documentElement.classList.add('ios')</script>
+<script>(function(r){if(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform))){r.dataset.ios='';if(!/[?&]abstand=0/.test(location.search))r.classList.add('ios')}})(document.documentElement)</script>
 <style>
 /* Oberkante für alles Bedienbare. iOS 26 legt einen Weichzeichner ~40 pt unter
    die Statusleiste, der sich nicht abschalten lässt – dort rückt alles tiefer. */
@@ -614,10 +614,28 @@ function resampleTopEdge() {
   document.body.append(probe);
   requestAnimationFrame(() => requestAnimationFrame(() => probe.remove()));
 }
-addEventListener('pageshow', () => requestAnimationFrame(resampleTopEdge));
+
+// Zweite Ursache: iOS bewertet den Rand oben erst bei einem Scroll-Ereignis
+// neu (scrollViewDidScroll) – unser Dokument scrollt aber nie, deshalb war es
+// erst nach der ersten Geste scharf. Also einmal unsichtbar 1 px hin und zurück.
+function nudgeScroll() {
+  const root = document.documentElement;
+  root.style.height = 'calc(100% + 1px)';
+  scrollTo(0, 1);
+  requestAnimationFrame(() => {
+    scrollTo(0, 0);
+    requestAnimationFrame(() => { root.style.height = ''; });
+  });
+}
+function fixTopEdge() {
+  if (!('ios' in document.documentElement.dataset)) return;
+  resampleTopEdge();
+  nudgeScroll();
+}
+addEventListener('pageshow', () => requestAnimationFrame(fixTopEdge));
 
 refresh().then(() => {
-  requestAnimationFrame(resampleTopEdge);
+  requestAnimationFrame(fixTopEdge);
   (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 });
 });
 addEventListener('visibilitychange', () => {
