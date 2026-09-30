@@ -16,16 +16,17 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<script>(function(r){if(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform))){r.dataset.ios='';if(!/[?&]abstand=0/.test(location.search)&&localStorage.getItem('tv.abstand')!=='0')r.classList.add('ios')}})(document.documentElement)</script>
+<script>(function(r,u){if(/iP(hone|ad|od)/.test(u)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform)))r.classList.add('ios');else if(/Android/.test(u))r.classList.add('android')})(document.documentElement,navigator.userAgent)</script>
 <style>
-/* Oberkante für alles Bedienbare. iOS 26 legt einen Weichzeichner ~40 pt unter
-   die Statusleiste, der sich nicht abschalten lässt – dort rückt alles tiefer. */
+/* Oberkante für Inhalt. iOS 26 legt einen Weichzeichner ~40 pt unter die
+   Statusleiste, der sich von der Seite aus nicht abschalten lässt. Deshalb sitzt
+   die Navigation unten; oben rückt nur der Anfang der Liste tiefer. */
 :root{--top:env(safe-area-inset-top)}
 .ios{--top:calc(env(safe-area-inset-top) + 40px)}
 :root{--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
 @media (prefers-color-scheme:light){:root{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}}
 *{box-sizing:border-box;margin:0}
-/* Das Dokument scrollt nie, nur die Liste: iOS 26 verwischt sonst alles unter der Statusleiste. */
+/* Das Dokument scrollt nie, nur die Liste. */
 html,body{height:100%;overflow:hidden}
 html{-webkit-text-size-adjust:100%;touch-action:pan-x pan-y;overscroll-behavior:none}
 body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -33,18 +34,27 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);fon
 img{-webkit-user-drag:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 :focus:not(:focus-visible),dialog:focus{outline:none}
-/* fixed, deckend, volle Breite: nur dann blendet iOS 26 den Weichzeichner oben aus (WebKit: fixedContainerEdges). */
-header{position:fixed;top:0;left:0;right:0;z-index:2;background:var(--bg);padding:calc(var(--top) + 6px) 8px 6px;border-bottom:1px solid var(--line)}
-.top{display:flex;align-items:center;gap:8px;height:34px;max-width:760px;margin:0 auto}
-.days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+/* Navigation unten als schwebende Leiste wie in iOS 26; die Liste läuft
+   darunter bis an den Bildschirmrand. Abstand zum Home-Balken nur so viel,
+   dass Antippen nicht mit der Wischgeste nach Hause kollidiert. */
+:root{--tabs-bottom:max(8px,calc(env(safe-area-inset-bottom) - 12px))}
+.tabs{position:fixed;z-index:2;left:max(8px,calc((100% - 760px) / 2));right:max(8px,calc((100% - 760px) / 2));bottom:var(--tabs-bottom);display:flex;align-items:center;gap:4px;height:46px;padding:0 4px 0 6px;border-radius:99px;background:color-mix(in srgb,var(--card) 80%,transparent);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);box-shadow:0 8px 28px #0005}
+.days{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+/* Android (Material 3): Navigationsleiste über die volle Breite, bündig unten,
+   flach ohne Milchglas; Auswahl als Pille. */
+.android{--tabs-bottom:0px}
+.android .tabs{left:0;right:0;height:calc(64px + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom) 12px;border:0;border-radius:0;background:color-mix(in srgb,var(--card) 60%,var(--bg));-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
+.android .days{gap:6px}
+.android .days button{padding:8px 14px;font-weight:500}
+.android main{padding-bottom:calc(64px + env(safe-area-inset-bottom) + 8px)}
 .days::-webkit-scrollbar{display:none}
-.days button{padding:4px 10px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:14px;white-space:nowrap}
+.days button{padding:6px 11px;border-radius:99px;font-size:14px;white-space:nowrap}
 .days button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#111;font-weight:600}
 .days .now::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4d4d;margin-right:5px;vertical-align:1px;animation:live 2.4s ease-in-out infinite}
 @keyframes live{0%,100%{opacity:1;box-shadow:0 0 0 0 #ff4d4d66}50%{opacity:.55;box-shadow:0 0 0 3px #ff4d4d00}}
 .icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;touch-action:pan-y;padding:calc(var(--top) + 49px) max(4px,calc((100% - 760px) / 2)) calc(env(safe-area-inset-bottom) + 8px)}
+main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;touch-action:pan-y;padding:calc(var(--top) + 6px) max(4px,calc((100% - 760px) / 2)) calc(var(--tabs-bottom) + 58px)}
 main::-webkit-scrollbar{display:none}
 .row{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;width:100%;text-align:left;padding:4px;border-radius:var(--r);transition:transform .12s,background-color .12s}
 .row:active{background:var(--card);transform:scale(.985)}
@@ -131,17 +141,15 @@ dialog[open]::backdrop{animation:fade .3s}
 .add li{cursor:pointer}
 .add li::after{content:"+";font-size:22px;color:var(--acc);padding:0 12px}
 input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);margin-bottom:8px}
-.opt{display:flex;align-items:center;gap:10px;padding:12px 4px;color:var(--dim);font-size:14px}
-.opt input{width:20px;height:20px;accent-color:var(--acc)}
 .reset{color:var(--dim);font-size:14px;text-decoration:underline;padding:8px 4px}
 </style>
 </head>
 <body>
-<header><div class="top">
+<main id="list"><p class="msg">Lade Programm …</p></main>
+<footer class="tabs">
   <nav class="days" id="days"></nav>
   <button class="icon" id="gear" aria-label="Sender auswählen"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--bg)"/><circle cx="15" cy="12" r="2" fill="var(--bg)"/><circle cx="8" cy="18" r="2" fill="var(--bg)"/></svg></button>
-</div></header>
-<main id="list"><p class="msg">Lade Programm …</p></main>
+</footer>
 
 <dialog id="detail" autofocus></dialog>
 
@@ -154,7 +162,6 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
     <input type="search" id="q" placeholder="Sender suchen …" autocomplete="off">
     <ul class="chl add" id="others"></ul>
     <button class="reset" id="reset">Auf Standard zurücksetzen</button>
-    <label class="opt" id="abstand" hidden><input type="checkbox"> Abstand oben für iOS (gegen den Weichzeichner)</label>
   </div>
 </dialog>
 
@@ -518,16 +525,6 @@ $('#gear').addEventListener('click', () => {
 });
 $('#q').addEventListener('input', renderOthers);
 
-// Zum Ausprobieren am Gerät: die 40 px gegen den iOS-Weichzeichner abschalten.
-if ('ios' in document.documentElement.dataset) {
-  const box = $('#abstand input');
-  $('#abstand').hidden = false;
-  box.checked = document.documentElement.classList.contains('ios');
-  box.addEventListener('change', () => {
-    localStorage.setItem('tv.abstand', box.checked ? '1' : '0');
-    document.documentElement.classList.toggle('ios', box.checked);
-  });
-}
 $('#others').addEventListener('click', (e) => {
   const li = e.target.closest('li');
   if (!li) return;
@@ -618,38 +615,7 @@ setInterval(() => {
   else updateProgress();
 }, 20000);
 
-// iOS 26 (WebKit) prüft beim Laden zu früh, ob oben ein deckender fixed-Header
-// liegt, und legt dann seinen Weichzeichner über den Titelbereich. Neu geprüft
-// wird u. a., wenn ein fixed-Element dazukommt oder verschwindet (deshalb war
-// es nach dem ersten Zurück scharf). Also genau das einmal auslösen.
-function resampleTopEdge() {
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;pointer-events:none';
-  document.body.append(probe);
-  requestAnimationFrame(() => requestAnimationFrame(() => probe.remove()));
-}
-
-// Zweite Ursache: iOS bewertet den Rand oben erst bei einem Scroll-Ereignis
-// neu (scrollViewDidScroll) – unser Dokument scrollt aber nie, deshalb war es
-// erst nach der ersten Geste scharf. Also einmal unsichtbar 1 px hin und zurück.
-function nudgeScroll() {
-  const root = document.documentElement;
-  root.style.height = 'calc(100% + 1px)';
-  scrollTo(0, 1);
-  requestAnimationFrame(() => {
-    scrollTo(0, 0);
-    requestAnimationFrame(() => { root.style.height = ''; });
-  });
-}
-function fixTopEdge() {
-  if (!('ios' in document.documentElement.dataset)) return;
-  resampleTopEdge();
-  nudgeScroll();
-}
-addEventListener('pageshow', () => requestAnimationFrame(fixTopEdge));
-
 refresh().then(() => {
-  requestAnimationFrame(fixTopEdge);
   (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 });
 });
 addEventListener('visibilitychange', () => {
