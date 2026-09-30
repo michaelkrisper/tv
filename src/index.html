@@ -128,15 +128,16 @@ const mins = (t) => +t.slice(0, 2) * 60 + +t.slice(3);
 // Über Mitternacht: 22:40 -> 00:15 sind 95 Minuten, nicht minus 1345.
 const duration = (start, stop) => (mins(stop) - mins(start) + 1440) % 1440;
 
-function meta(it, stars) {
+// Übersicht knapp halten; Jahr und Wertung nur in der Detailansicht.
+function meta(it, full) {
   const [, start, stop, genre, year, , rating] = it;
   const bits = [];
   if (genre) bits.push(esc(genre));
   bits.push(`${duration(start, stop)} Min`);
   // Nur abweichende Startzeiten nennen (Sendung läuft schon).
   bits.push(`${start === '20:15' ? '' : `seit ${start} `}bis ${stop}`);
-  if (year) bits.push(year);
-  if (stars && rating) bits.push(`★ ${String(rating).replace('.', ',')}`);
+  if (full && year) bits.push(year);
+  if (full && rating) bits.push(`★ ${String(rating).replace('.', ',')}`);
   return bits.map((b) => `<span class="nw">${b}</span>`).join(' · ');
 }
 
