@@ -1,0 +1,17 @@
+{
+  "name": "TV – Was läuft um 20:15?",
+  "short_name": "TV",
+  "description": "Was heute um 20:15 im Fernsehen läuft – auf einen Blick.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101218",
+  "theme_color": "#101218",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

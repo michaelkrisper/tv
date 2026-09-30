@@ -1,0 +1,86 @@
+name: Deploy
+
+# Baut die 20:15-Daten aus dem EPG und veröffentlicht alles auf GitHub Pages.
+# Läuft bei jedem Push und zweimal täglich, weil jeden Tag ein neuer Tag
+# dazukommt und sich das Programm kurzfristig ändern kann.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '15 3 * * *' # 05:15 MESZ / 04:15 MEZ
+    - cron: '15 14 * * *' # 16:15 MESZ – vor dem Abend noch einmal
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+      # Verkleinerte Bilder zwischen den Läufen behalten: sonst wird jedes Mal
+      # alles neu geladen und codiert, so nur was neu dazukommt.
+      - uses: actions/cache@v6
+        with:
+          path: .cache
+          key: img-${{ github.run_id }}
+          restore-keys: img-
+
+      - run: npm run build
+
+      # Nur Bilder der letzten 14 Tage aufheben, damit der Cache nicht wächst.
+      - run: find .cache/img -type f -mtime +14 -delete || true
+
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+      # GitHub legt geplante Workflows in öffentlichen Repos nach 60 Tagen ohne
+      # Commit still. Das erneute Aktivieren setzt die Frist zurück.
+      - if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/deploy.yml/enable"
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@v5
+
+      - name: Nachsehen
+        run: |
+          set -euo pipefail
+          live="${{ steps.pages.outputs.page_url }}"
+          for f in "" data/list.json sw.js manifest.webmanifest; do
+            for versuch in 1 2 3 4 5; do
+              code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$live$f" || echo 000)"
+              [ "$code" = 200 ] && break
+              sleep 5
+            done
+            echo "/$f -> $code"
+            [ "$code" = 200 ] || { echo "::error::/$f antwortet mit $code"; exit 1; }
+          done

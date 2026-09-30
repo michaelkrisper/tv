@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TV">
+<title>TV – Was läuft um 20:15?</title>
+<meta name="description" content="Was heute um 20:15 im Fernsehen läuft – auf einen Blick.">
+<meta name="theme-color" content="#101218">
+<link rel="preload" href="data/list.json" as="fetch" crossorigin>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
+@media (prefers-color-scheme:light){:root{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;touch-action:pan-x pan-y;overscroll-behavior:none}
+body{background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.dt p,.dt .sub,.cast{-webkit-user-select:text;user-select:text}
+img{-webkit-user-drag:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+header{position:sticky;top:0;z-index:2;background:var(--bg);padding:calc(env(safe-area-inset-top) + 10px) 12px 8px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px;max-width:760px;margin:0 auto}
+h1{flex:none;font-size:26px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+h1 span{color:var(--acc)}
+.days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.days::-webkit-scrollbar{display:none}
+.days button{padding:6px 11px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:14px;white-space:nowrap}
+.days button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#111;font-weight:600}
+.icon{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none}
+.icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+main{max-width:760px;margin:0 auto;padding:8px 8px calc(env(safe-area-inset-bottom) + 24px)}
+.row{display:grid;grid-template-columns:128px 1fr;gap:12px;align-items:center;width:100%;text-align:left;padding:8px;border-radius:var(--r)}
+.row:active{background:var(--card)}
+@media (hover:hover){.row:hover{background:var(--card)}}
+.th{width:128px;height:auto;aspect-ratio:16/9;border-radius:8px;background:var(--card);object-fit:cover;display:block}
+.ch{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--acc)}
+.t{display:block;font-weight:650;font-size:17px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.m{font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+.row.none{opacity:.45;pointer-events:none}
+.msg{padding:40px 16px;text-align:center;color:var(--dim)}
+dialog{border:0;padding:0;background:var(--bg);color:var(--fg);width:100%;max-width:760px;height:100%;max-height:100%;margin:0 auto;overscroll-behavior:contain}
+dialog::backdrop{background:#000a}
+@media (min-width:800px){dialog{height:auto;max-height:92vh;margin:4vh auto;border-radius:16px}}
+.bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 8px 8px;background:var(--bg)}
+.bar h2{font-size:18px;flex:1}
+.hero{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--card) center/cover;display:block}
+.dt{padding:14px 16px calc(env(safe-area-inset-bottom) + 28px)}
+.dt h2{font-size:24px;line-height:1.2}
+.dt .sub{color:var(--dim);margin-top:2px}
+.dt .m{margin:8px 0 12px;font-size:14px}
+.dt p{margin:0 0 10px;line-height:1.5}
+.dt h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:16px 0 6px}
+.cast{display:flex;flex-wrap:wrap;gap:6px;padding:0;list-style:none}
+.cast li{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:14px}
+.cast small{color:var(--dim)}
+.close{position:absolute;top:calc(env(safe-area-inset-top) + 10px);right:10px;background:#000a;color:#fff}
+.sec{padding:4px 12px 12px}
+.sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:14px 4px 6px}
+.chl{list-style:none;padding:0}
+.chl li{display:flex;align-items:center;gap:6px;padding:4px 4px 4px 12px;background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:6px;min-height:48px;touch-action:pan-y}
+.chl li span{flex:1}
+.chl li.drag{opacity:.9;box-shadow:0 6px 20px #0008;position:relative;z-index:2}
+.handle{touch-action:none;cursor:grab;color:var(--dim)}
+.add li{cursor:pointer}
+.add li::after{content:"+";font-size:22px;color:var(--acc);padding:0 12px}
+input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);margin-bottom:8px}
+.reset{color:var(--dim);font-size:14px;text-decoration:underline;padding:8px 4px}
+.foot{text-align:center;color:var(--dim);font-size:12px;margin-top:20px}
+</style>
+</head>
+<body>
+<header><div class="top">
+  <h1>20<span>:</span>15</h1>
+  <nav class="days" id="days"></nav>
+  <button class="icon" id="gear" aria-label="Sender auswählen"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--bg)"/><circle cx="15" cy="12" r="2" fill="var(--bg)"/><circle cx="8" cy="18" r="2" fill="var(--bg)"/></svg></button>
+</div></header>
+<main id="list"><p class="msg">Lade Programm …</p></main>
+
+<dialog id="detail"></dialog>
+
+<dialog id="settings">
+  <div class="bar"><h2>Sender</h2><button class="icon" data-close aria-label="Fertig"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></button></div>
+  <div class="sec">
+    <h3>Meine Sender · zum Sortieren ziehen</h3>
+    <ul class="chl" id="mine"></ul>
+    <h3>Weitere Sender</h3>
+    <input type="search" id="q" placeholder="Sender suchen …" autocomplete="off">
+    <ul class="chl add" id="others"></ul>
+    <button class="reset" id="reset">Auf Standard zurücksetzen</button>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+const DEFAULT = ['orf1','orf2','orfiii','servustv','atv','puls4','daserste','zdf','rtl','sat1','prosieben','vox','kabeleins','rtlzwei','3sat','arte'];
+const KEY = 'tv.channels';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const img = (h, size) => `img/${h}-${size}.avif`;
+
+let list = null;
+let day = null;
+let names = new Map();
+const details = new Map();
+
+function loadMine() {
+  try { const v = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(v)) return v; } catch {}
+  return null;
+}
+let mine = loadMine();
+const saveMine = () => localStorage.setItem(KEY, JSON.stringify(mine));
+const localIso = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+function dayLabel(iso) {
+  if (iso === localIso()) return 'Heute';
+  const t = new Date(); t.setDate(t.getDate() + 1);
+  if (iso === localIso(t)) return 'Morgen';
+  return new Date(`${iso}T12:00`).toLocaleDateString('de-AT', { weekday: 'short', day: 'numeric', month: 'numeric' });
+}
+
+function meta(it) {
+  const [, start, stop, genre, year, , rating] = it;
+  const bits = [];
+  if (genre) bits.push(esc(genre));
+  if (year) bits.push(year);
+  bits.push(`${start}–${stop}`);
+  if (rating) bits.push(`★\u00a0${String(rating).replace('.', ',')}`);
+  return bits.join(' · ');
+}
+
+function renderDays() {
+  const today = localIso();
+  const days = list.days.filter((d) => d >= today);
+  const show = days.length ? days : list.days.slice(-1);
+  if (!show.includes(day)) day = show[0];
+  $('#days').innerHTML = show.map((d) => `<button data-day="${d}" aria-pressed="${d === day}">${dayLabel(d)}</button>`).join('');
+}
+
+function renderList() {
+  const items = list.items[day] || {};
+  const rows = mine.filter((id) => names.has(id)).map((id, i) => {
+    const it = items[id];
+    const name = esc(names.get(id));
+    if (!it) return `<div class="row none"><div class="th"></div><div><span class="ch">${name}</span><span class="t">Keine Daten</span></div></div>`;
+    const lazy = i < 6 ? 'fetchpriority="high"' : 'loading="lazy"';
+    const th = it[5] ? `<img class="th" src="${img(it[5], 's')}" ${lazy} decoding="async" width="320" height="180" alt="">` : '<div class="th"></div>';
+    return `<button class="row" data-id="${id}">${th}<div><span class="ch">${name}</span><span class="t">${esc(it[0])}</span><span class="m">${meta(it)}</span></div></button>`;
+  });
+  $('#list').innerHTML = rows.length
+    ? rows.join('') + `<p class="foot">Stand ${new Date(list.built).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' })}</p>`
+    : '<p class="msg">Keine Sender ausgewählt.</p>';
+}
+
+function render() { renderDays(); renderList(); }
+
+async function getList() {
+  const res = await fetch('data/list.json');
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+function applyList(l) {
+  if (list && l.built === list.built) return;
+  list = l;
+  names = new Map(l.channels);
+  if (!mine) mine = DEFAULT.filter((id) => names.has(id));
+  render();
+}
+
+async function getDetails(d) {
+  if (!details.has(d)) details.set(d, fetch(`data/${d}.json`).then((r) => r.json()).catch((e) => { details.delete(d); throw e; }));
+  return details.get(d);
+}
+
+// ---- Detailansicht ---------------------------------------------------------
+const dlg = $('#detail');
+async function openDetail(id) {
+  const it = list.items[day][id];
+  const hero = it[5] ? `<img class="hero" src="${img(it[5], 'l')}" style="background-image:url(${img(it[5], 's')})" alt="">` : '';
+  const head = `${hero}<button class="icon close" data-close aria-label="Schließen"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="dt"><span class="ch">${esc(names.get(id))}</span><h2>${esc(it[0])}</h2><div id="dx"><div class="m">${meta(it)}</div></div></div>`;
+  dlg.innerHTML = head;
+  dlg.dataset.id = id;
+  if (!dlg.open) { dlg.showModal(); history.pushState({ d: 1 }, ''); }
+  dlg.scrollTop = 0;
+  let x = {};
+  try { x = (await getDetails(day))[id] || {}; } catch {}
+  const dx = $('#dx');
+  if (!dlg.open || !dx || dlg.dataset.id !== id) return;
+  const extra = [];
+  if (x.ep) extra.push(esc(x.ep));
+  if (x.country) extra.push(esc(x.country));
+  let body = `${x.sub ? `<div class="sub">${esc(x.sub)}</div>` : ''}<div class="m">${meta(it)}${extra.length ? ` · ${extra.join(' · ')}` : ''}</div>`;
+  if (x.desc) body += x.desc.split(/\n+/).map((p) => `<p>${esc(p)}</p>`).join('');
+  if (x.cast) body += `<h3>Besetzung</h3><ul class="cast">${x.cast.map((a) => `<li>${esc(a.n)}${a.r ? ` <small>${esc(a.r)}</small>` : ''}</li>`).join('')}</ul>`;
+  if (x.dir) body += `<h3>Regie</h3><p>${x.dir.map(esc).join(', ')}</p>`;
+  dx.innerHTML = body;
+}
+
+function closeDialogs() { for (const d of document.querySelectorAll('dialog[open]')) d.close(); }
+addEventListener('popstate', closeDialogs);
+for (const d of document.querySelectorAll('dialog')) {
+  d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) history.back(); });
+  d.addEventListener('cancel', (e) => { e.preventDefault(); history.back(); });
+  d.addEventListener('close', () => { if (d.id === 'settings') renderList(); });
+}
+
+$('#list').addEventListener('click', (e) => {
+  const row = e.target.closest('.row[data-id]');
+  if (row) openDetail(row.dataset.id);
+});
+$('#days').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  day = b.dataset.day;
+  render();
+  scrollTo(0, 0);
+});
+
+// ---- Senderauswahl ---------------------------------------------------------
+const set = $('#settings');
+const handleSvg = '<svg viewBox="0 0 24 24"><path d="M5 9h14M5 15h14"/></svg>';
+function renderSettings() {
+  $('#mine').innerHTML = mine.filter((id) => names.has(id)).map((id) =>
+    `<li data-id="${id}"><span>${esc(names.get(id))}</span><button class="icon rm" aria-label="Entfernen"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><button class="icon handle" aria-label="Verschieben">${handleSvg}</button></li>`).join('');
+  renderOthers();
+}
+function renderOthers() {
+  const q = $('#q').value.trim().toLowerCase();
+  const taken = new Set(mine);
+  $('#others').innerHTML = list.channels
+    .filter(([id, n]) => !taken.has(id) && (!q || n.toLowerCase().includes(q)))
+    .map(([id, n]) => `<li data-id="${id}"><span>${esc(n)}</span></li>`).join('');
+}
+$('#gear').addEventListener('click', () => {
+  if (!list) return;
+  $('#q').value = '';
+  renderSettings();
+  set.showModal();
+  history.pushState({ s: 1 }, '');
+});
+$('#q').addEventListener('input', renderOthers);
+$('#others').addEventListener('click', (e) => {
+  const li = e.target.closest('li');
+  if (!li) return;
+  mine.push(li.dataset.id);
+  saveMine();
+  renderSettings();
+});
+$('#mine').addEventListener('click', (e) => {
+  if (!e.target.closest('.rm')) return;
+  const id = e.target.closest('li').dataset.id;
+  mine = mine.filter((x) => x !== id);
+  saveMine();
+  renderSettings();
+});
+$('#reset').addEventListener('click', () => {
+  mine = DEFAULT.filter((id) => names.has(id));
+  saveMine();
+  renderSettings();
+});
+
+// Ziehen am Griff: das Element folgt dem Finger, Nachbarn rücken nach.
+$('#mine').addEventListener('pointerdown', (e) => {
+  const h = e.target.closest('.handle');
+  if (!h) return;
+  e.preventDefault();
+  const li = h.closest('li');
+  const ul = li.parentElement;
+  li.classList.add('drag');
+  h.setPointerCapture(e.pointerId);
+  let startY = e.clientY;
+  const move = (ev) => {
+    li.style.transform = `translateY(${ev.clientY - startY}px)`;
+    const prev = li.previousElementSibling;
+    const next = li.nextElementSibling;
+    const r = li.getBoundingClientRect();
+    const mid = r.top + r.height / 2;
+    if (prev && mid < prev.getBoundingClientRect().top + prev.offsetHeight / 2) {
+      ul.insertBefore(li, prev);
+      startY -= prev.offsetHeight + 6;
+    } else if (next && mid > next.getBoundingClientRect().top + next.offsetHeight / 2) {
+      ul.insertBefore(next, li);
+      startY += next.offsetHeight + 6;
+    } else return;
+    li.style.transform = `translateY(${ev.clientY - startY}px)`;
+  };
+  const up = () => {
+    h.removeEventListener('pointermove', move);
+    li.classList.remove('drag');
+    li.style.transform = '';
+    const order = [...ul.children].map((x) => x.dataset.id);
+    mine = [...order, ...mine.filter((id) => !order.includes(id))];
+    saveMine();
+  };
+  h.addEventListener('pointermove', move);
+  h.addEventListener('pointerup', up, { once: true });
+  h.addEventListener('pointercancel', up, { once: true });
+});
+
+// Wie eine App: kein Pinch-Zoom. iOS ignoriert user-scalable=no im Browser.
+for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault());
+
+// ---- Start -----------------------------------------------------------------
+async function refresh() {
+  try { applyList(await getList()); }
+  catch { if (!list) $('#list').innerHTML = '<p class="msg">Programm konnte nicht geladen werden.</p>'; }
+}
+
+// Im Leerlauf vorladen: Details für heute, Vorschaubilder der eigenen Sender
+// für alle Tage. Danach geht Tageswechsel und Antippen ohne Netz.
+function prefetch() {
+  if (!list || navigator.connection?.saveData) return;
+  getDetails(day).catch(() => {});
+  const seen = new Set();
+  for (const d of list.days) for (const id of mine) {
+    const h = list.items[d]?.[id]?.[5];
+    if (h && !seen.has(h)) { seen.add(h); fetch(img(h, 's'), { priority: 'low' }).catch(() => {}); }
+  }
+}
+
+refresh().then(() => (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 }));
+addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && list) { renderDays(); refresh(); }
+});
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data === 'list') refresh(); });
+}
+</script>
+</body>
+</html>
