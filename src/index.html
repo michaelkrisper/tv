@@ -91,7 +91,9 @@ dialog[open]::backdrop{animation:fade .3s}
 .ht h2{font-size:28px;line-height:1.12;font-weight:800;letter-spacing:-.3px;margin:6px 0 5px;text-wrap:balance;text-shadow:0 1px 14px #000a}
 @media (prefers-color-scheme:light){.ht h2{text-shadow:0 1px 12px #fffc}}
 .ht .m{font-size:13.5px}
+.chn{display:flex;align-items:center;gap:8px}
 .ht .lg{position:static;display:inline-flex;height:24px}
+.ht .ch{text-shadow:0 1px 6px #000c}
 .ht .pg:not([hidden]){display:block}
 .ht .pg{position:static;margin-top:10px;height:3px;border-radius:2px;background:var(--line)}
 .hw.no{background:none;padding-top:calc(env(safe-area-inset-top) + 52px)}
@@ -413,7 +415,8 @@ async function openDetail(id) {
   const cors = it.live ? ' crossorigin="anonymous"' : '';
   const hero = it.hero ? `<img class="hero" src="${it.hero}"${cors} alt="">` : '';
   const bg = it.th ? ` style="background-image:url('${it.th}')"` : '';
-  const mark = logos.has(id) ? channelMark(id) : `<span class="ch">${esc(names.get(id))}</span>`;
+  // Name immer auch als Text: manche Logos (z. B. ARD alpha) erkennt man nicht.
+  const mark = `<div class="chn">${logos.has(id) ? channelMark(id) : ''}<span class="ch">${esc(names.get(id))}</span></div>`;
   dlg.innerHTML = `<div class="hw${hero ? '' : ' no'}"${bg}>${hero}<div class="ht">${mark}<h2>${esc(it.title)}</h2><div class="m">${meta(it)}</div>${progressBar(it)}</div></div>${backBtn}<div class="dt"><div id="dx"></div></div>`;
   dlg.dataset.id = id;
   settleImages(dlg);
