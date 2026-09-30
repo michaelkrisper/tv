@@ -19,12 +19,14 @@
 :root{--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
 @media (prefers-color-scheme:light){:root{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}}
 *{box-sizing:border-box;margin:0}
+/* Das Dokument scrollt nie, nur die Liste: iOS 26 verwischt sonst alles unter der Statusleiste. */
+html,body{height:100%;overflow:hidden}
 html{-webkit-text-size-adjust:100%;touch-action:pan-x pan-y;overscroll-behavior:none}
-body{background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .dt p,.dt .sub,.cast{-webkit-user-select:text;user-select:text}
 img{-webkit-user-drag:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-header{position:fixed;top:0;left:0;right:0;z-index:2;background:var(--bg);padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;border-bottom:1px solid var(--line)}
+header{flex:none;background:var(--bg);padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;border-bottom:1px solid var(--line)}
 .top{display:flex;align-items:center;gap:8px;height:34px;max-width:760px;margin:0 auto}
 .days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
 .days::-webkit-scrollbar{display:none}
@@ -32,7 +34,7 @@ header{position:fixed;top:0;left:0;right:0;z-index:2;background:var(--bg);paddin
 .days button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#111;font-weight:600}
 .icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-main{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 49px) 4px calc(env(safe-area-inset-bottom) + 8px)}
+main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px max(4px,calc((100% - 760px) / 2)) calc(env(safe-area-inset-bottom) + 8px)}
 .row{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;width:100%;text-align:left;padding:4px;border-radius:var(--r)}
 .row:active{background:var(--card)}
 @media (hover:hover){.row:hover{background:var(--card)}}
@@ -47,6 +49,11 @@ main{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 49px)
 .msg{padding:40px 16px;text-align:center;color:var(--dim)}
 dialog{border:0;padding:0;background:var(--bg);color:var(--fg);width:100%;max-width:760px;height:100%;max-height:100%;margin:0 auto;overscroll-behavior:contain}
 dialog::backdrop{background:#000a}
+dialog[open]{animation:push .3s cubic-bezier(.2,.8,.2,1)}
+dialog[open]::backdrop{animation:fade .3s}
+@keyframes push{from{transform:translateX(100%)}}
+@keyframes fade{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){dialog[open],dialog[open]::backdrop{animation:none}}
 @media (min-width:800px){dialog{height:auto;max-height:92vh;margin:4vh auto;border-radius:16px}}
 .bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 8px 8px;background:var(--bg)}
 .bar h2{font-size:18px;flex:1}
@@ -211,7 +218,19 @@ async function openDetail(id) {
   dx.innerHTML = body;
 }
 
-function closeDialogs() { for (const d of document.querySelectorAll('dialog[open]')) d.close(); }
+// Zurück schiebt die Ansicht nach rechts hinaus. Nicht bei Safaris Wischgeste
+// vom linken Rand: die animiert schon selbst, sonst liefe es doppelt.
+let edgeSwipe = 0;
+addEventListener('touchstart', (e) => { if (e.touches[0].clientX < 30) edgeSwipe = Date.now(); }, { passive: true });
+const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+const EASE_OUT = { duration: 250, easing: 'cubic-bezier(.4,0,.8,.2)' };
+function closeDialogs() {
+  for (const d of document.querySelectorAll('dialog[open]')) {
+    if (reduce.matches || Date.now() - edgeSwipe < 1500 || !d.animate) { d.close(); continue; }
+    d.animate([{ transform: 'none' }, { transform: 'translateX(100%)' }], EASE_OUT).finished.then(() => d.close());
+    try { d.animate([{ opacity: 1 }, { opacity: 0 }], { ...EASE_OUT, pseudoElement: '::backdrop' }); } catch {}
+  }
+}
 addEventListener('popstate', closeDialogs);
 for (const d of document.querySelectorAll('dialog')) {
   d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) history.back(); });
@@ -228,7 +247,7 @@ $('#days').addEventListener('click', (e) => {
   if (!b) return;
   day = b.dataset.day;
   render();
-  scrollTo(0, 0);
+  $('#list').scrollTop = 0;
 });
 
 // ---- Senderauswahl ---------------------------------------------------------
