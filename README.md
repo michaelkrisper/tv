@@ -7,7 +7,6 @@ Was läuft heute um 20:15 – und was läuft jetzt? Eine Seite, alle Sender, auf
 - Pro Sender die Sendung, die um 20:15 läuft, mit Senderlogo, Vorschaubild, Genre und Dauer
 - **Jetzt**: was gerade läuft, mit Restzeit und Fortschritt; Tage und Jetzt per Wischen wechseln
 - Antippen zeigt Beschreibung, Besetzung mit Rollen, Regie, Jahr, IMDb-Wertung und (bei Jetzt) was danach kommt
-- Filme ab IMDb 7 sind als Tipp markiert
 - Heute und die nächsten drei Tage
 - Sender auswählen und per Ziehen sortieren (bleibt im Browser gespeichert)
 - Als App installierbar (PWA), funktioniert offline mit dem zuletzt geladenen Stand
