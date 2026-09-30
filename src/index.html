@@ -393,7 +393,22 @@ function prefetch() {
   }
 }
 
-refresh().then(() => (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 }));
+// iOS 26 (WebKit) prüft beim Laden zu früh, ob oben ein deckender fixed-Header
+// liegt, und legt dann seinen Weichzeichner über den Titelbereich. Neu geprüft
+// wird u. a., wenn ein fixed-Element dazukommt oder verschwindet (deshalb war
+// es nach dem ersten Zurück scharf). Also genau das einmal auslösen.
+function resampleTopEdge() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;pointer-events:none';
+  document.body.append(probe);
+  requestAnimationFrame(() => requestAnimationFrame(() => probe.remove()));
+}
+addEventListener('pageshow', () => requestAnimationFrame(resampleTopEdge));
+
+refresh().then(() => {
+  requestAnimationFrame(resampleTopEdge);
+  (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 });
+});
 addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && list) { renderDays(); refresh(); }
 });
