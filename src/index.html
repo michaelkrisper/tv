@@ -131,9 +131,10 @@ function meta(it, stars) {
   const [, start, stop, genre, year, , rating] = it;
   const bits = [];
   if (genre) bits.push(esc(genre));
+  bits.push(`${duration(start, stop)} Min`);
+  // Nur abweichende Startzeiten nennen (Sendung läuft schon).
+  bits.push(`${start === '20:15' ? '' : `seit ${start} `}bis ${stop}`);
   if (year) bits.push(year);
-  // 20:15 steht oben; nur abweichende Startzeiten (läuft schon) nennen.
-  bits.push(`${start === '20:15' ? '' : `seit ${start}, `}bis ${stop} (${duration(start, stop)} Min.)`);
   if (stars && rating) bits.push(`★ ${String(rating).replace('.', ',')}`);
   return bits.map((b) => `<span class="nw">${b}</span>`).join(' · ');
 }
