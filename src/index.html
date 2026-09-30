@@ -60,7 +60,8 @@ dialog::backdrop{background:#000a}
 .cast{display:flex;flex-wrap:wrap;gap:6px;padding:0;list-style:none}
 .cast li{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:14px}
 .cast small{color:var(--dim)}
-.close{position:absolute;top:calc(env(safe-area-inset-top) + 10px);right:10px;background:#000a;color:#fff}
+.back{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:8px;background:#000a;color:#fff}
+.dt.nohero{padding-top:calc(env(safe-area-inset-top) + 52px)}
 .sec{padding:4px 12px 12px}
 .sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:14px 4px 6px}
 .chl{list-style:none;padding:0}
@@ -84,7 +85,7 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
 <dialog id="detail"></dialog>
 
 <dialog id="settings">
-  <div class="bar"><h2>Sender</h2><button class="icon" data-close aria-label="Fertig"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></button></div>
+  <div class="bar"><button class="icon" data-close aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Sender</h2></div>
   <div class="sec">
     <h3>Meine Sender · zum Sortieren ziehen</h3>
     <ul class="chl" id="mine"></ul>
@@ -189,8 +190,8 @@ const dlg = $('#detail');
 async function openDetail(id) {
   const it = list.items[day][id];
   const hero = it[5] ? `<img class="hero" src="${img(it[5], 'l')}" style="background-image:url(${img(it[5], 's')})" alt="">` : '';
-  const head = `${hero}<button class="icon close" data-close aria-label="Schließen"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    <div class="dt"><span class="ch">${esc(names.get(id))}</span><h2>${esc(it[0])}</h2><div id="dx"><div class="m">${meta(it, true)}</div></div></div>`;
+  const head = `${hero}<button class="icon back" data-close aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="dt${hero ? '' : ' nohero'}"><span class="ch">${esc(names.get(id))}</span><h2>${esc(it[0])}</h2><div id="dx"><div class="m">${meta(it, true)}</div></div></div>`;
   dlg.innerHTML = head;
   dlg.dataset.id = id;
   if (!dlg.open) { dlg.showModal(); history.pushState({ d: 1 }, ''); }
