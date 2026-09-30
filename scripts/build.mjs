@@ -1,8 +1,5 @@
-// Holt die XMLTV-Feeds, schneidet für jeden Sender die Sendung heraus, die um
-// 20:15 läuft, verkleinert die Bilder und schreibt alles nach dist/.
-//
-//   node scripts/build.mjs            voll, mit Senderlogos
-//   node scripts/build.mjs --no-img   ohne Logos (lokales Testen)
+// Holt die XMLTV-Feeds, schneidet für jeden Sender die 20:15-Sendung und das
+// Tagesprogramm für "Jetzt" heraus, holt die Senderlogos und schreibt nach dist/.
 //
 // Vorschaubilder verarbeitet der Build nicht: die App lädt sie live über die
 // Resize-Dienste (fairu selbst, sonst wsrv.nl).
@@ -36,7 +33,6 @@ const DAYS = 4;
 // Für "Jetzt": heute und morgen (nach Mitternacht, bevor der nächste Build läuft).
 const NOW_DAYS = 2;
 const NOW_SPAN = 30 * 3600_000;
-const WITH_IMG = !process.argv.includes('--no-img');
 
 // Reihenfolge = Vorrang: der erste Feed liefert die Sendung, weitere ergänzen.
 const FEEDS = [
@@ -390,7 +386,7 @@ async function main() {
   }
   const channels = merge(feeds);
   for (const [id, ch] of channels) if (!ch.days.size) channels.delete(id);
-  if (WITH_IMG) await logos(channels);
+  await logos(channels);
   await write(channels, days);
   const today = days[0].date;
   const n = [...channels.values()].filter((c) => c.days.has(today)).length;

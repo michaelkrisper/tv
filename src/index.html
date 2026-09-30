@@ -58,7 +58,7 @@ img.ok{opacity:1}
 /* Logos transparent auf dem Bild: Schatten und eine abgedunkelte Ecke tragen
    weiße und farbige Logos; fast schwarze (k) bekommen einen hellen Schein. */
 .lg{position:absolute;z-index:1;left:4px;top:4px;display:flex;align-items:center;height:16px}
-.lg img{height:100%;width:auto;max-width:58px;display:block;filter:drop-shadow(0 0 1px #000a) drop-shadow(0 1px 3px #000c)}
+.lg img{height:100%;width:auto;max-width:58px;object-fit:contain;object-position:left center;display:block;filter:drop-shadow(0 0 1px #000a) drop-shadow(0 1px 3px #000c)}
 .lg.k img{filter:drop-shadow(0 0 1px #fffc) drop-shadow(0 0 4px #fffa)}
 .tw.sc::after{content:"";position:absolute;inset:0;border-radius:8px;background:radial-gradient(110% 80% at 0 0,#000a,transparent 60%);pointer-events:none}
 .pg{position:absolute;left:0;right:0;bottom:0;height:3px;background:#0009;border-radius:0 0 8px 8px;overflow:hidden}
@@ -97,6 +97,7 @@ dialog[open]::backdrop{animation:fade .3s}
 .ht .m{font-size:13.5px}
 .chn{display:flex;align-items:center;gap:8px}
 .ht .lg{position:static;display:inline-flex;height:24px}
+.ht .lg img{max-width:96px}
 @media (prefers-color-scheme:dark){.ht .ch{text-shadow:0 1px 6px #000c}}
 .ht .pg:not([hidden]){display:block}
 .ht .pg{position:static;margin-top:10px;height:3px;border-radius:2px;background:var(--line)}

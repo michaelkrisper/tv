@@ -47,8 +47,7 @@ tests/          node:test
 
 ```sh
 npm ci
-npm run build:fast   # ohne Senderlogos, ~3 s
-npm run build        # mit Senderlogos (beim ersten Mal ~10 s, danach aus .cache/)
+npm run build        # ~5 s; Senderlogos beim ersten Mal ~10 s, danach aus .cache/
 npm run serve        # http://localhost:8080
 npm run check        # Lint + Tests
 ```

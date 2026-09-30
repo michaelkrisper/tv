@@ -4,7 +4,6 @@
   "description": "Was heute um 20:15 im Fernsehen läuft – PWA auf GitHub Pages",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "build:fast": "node scripts/build.mjs --no-img",
     "serve": "npx -y serve dist -l 8080",
     "lint": "biome check",
     "lint:fix": "biome check --write",

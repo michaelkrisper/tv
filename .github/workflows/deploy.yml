@@ -7,7 +7,6 @@ name: Deploy
 on:
   push:
     branches: [main]
-  pull_request:
   schedule:
     - cron: '15 3 * * *' # 05:15 MESZ / 04:15 MEZ
     - cron: '15 14 * * *' # 16:15 MESZ – vor dem Abend noch einmal
@@ -24,8 +23,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -48,26 +50,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
-
-      # GitHub legt geplante Workflows in öffentlichen Repos nach 60 Tagen ohne
-      # Commit still. Das erneute Aktivieren setzt die Frist zurück.
-      - if: github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/deploy.yml/enable"
-
-  deploy:
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.pages.outputs.page_url }}
-    steps:
       - id: pages
         uses: actions/deploy-pages@v5
 
@@ -84,3 +69,10 @@ jobs:
             echo "/$f -> $code"
             [ "$code" = 200 ] || { echo "::error::/$f antwortet mit $code"; exit 1; }
           done
+
+      # GitHub legt geplante Workflows in öffentlichen Repos nach 60 Tagen ohne
+      # Commit still. Das erneute Aktivieren setzt die Frist zurück.
+      - if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/deploy.yml/enable"
