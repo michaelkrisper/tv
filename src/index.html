@@ -16,7 +16,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<script>(function(r){if(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform))){r.dataset.ios='';if(!/[?&]abstand=0/.test(location.search))r.classList.add('ios')}})(document.documentElement)</script>
+<script>(function(r){if(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform))){r.dataset.ios='';if(!/[?&]abstand=0/.test(location.search)&&localStorage.getItem('tv.abstand')!=='0')r.classList.add('ios')}})(document.documentElement)</script>
 <style>
 /* Oberkante für alles Bedienbare. iOS 26 legt einen Weichzeichner ~40 pt unter
    die Statusleiste, der sich nicht abschalten lässt – dort rückt alles tiefer. */
@@ -131,6 +131,8 @@ dialog[open]::backdrop{animation:fade .3s}
 .add li{cursor:pointer}
 .add li::after{content:"+";font-size:22px;color:var(--acc);padding:0 12px}
 input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);margin-bottom:8px}
+.opt{display:flex;align-items:center;gap:10px;padding:12px 4px;color:var(--dim);font-size:14px}
+.opt input{width:20px;height:20px;accent-color:var(--acc)}
 .reset{color:var(--dim);font-size:14px;text-decoration:underline;padding:8px 4px}
 </style>
 </head>
@@ -152,6 +154,7 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
     <input type="search" id="q" placeholder="Sender suchen …" autocomplete="off">
     <ul class="chl add" id="others"></ul>
     <button class="reset" id="reset">Auf Standard zurücksetzen</button>
+    <label class="opt" id="abstand" hidden><input type="checkbox"> Abstand oben für iOS (gegen den Weichzeichner)</label>
   </div>
 </dialog>
 
@@ -514,6 +517,17 @@ $('#gear').addEventListener('click', () => {
   history.pushState({ s: 1 }, '');
 });
 $('#q').addEventListener('input', renderOthers);
+
+// Zum Ausprobieren am Gerät: die 40 px gegen den iOS-Weichzeichner abschalten.
+if ('ios' in document.documentElement.dataset) {
+  const box = $('#abstand input');
+  $('#abstand').hidden = false;
+  box.checked = document.documentElement.classList.contains('ios');
+  box.addEventListener('change', () => {
+    localStorage.setItem('tv.abstand', box.checked ? '1' : '0');
+    document.documentElement.classList.toggle('ios', box.checked);
+  });
+}
 $('#others').addEventListener('click', (e) => {
   const li = e.target.closest('li');
   if (!li) return;
