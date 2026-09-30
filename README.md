@@ -14,7 +14,7 @@ Was läuft heute um 20:15 – und was läuft jetzt? Eine Seite, alle Sender, auf
 ## Wie es funktioniert
 
 Es gibt keinen Server und keine Datenbank. Eine GitHub Action läuft bei jedem
-Push und zweimal täglich:
+Push und täglich um 18 Uhr:
 
 1. lädt die XMLTV-Programmdaten für Deutschland und Österreich von
    [epgshare01](https://epgshare01.online/) (je rund 60 MB entpackt),
