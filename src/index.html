@@ -40,7 +40,8 @@ header{position:fixed;top:0;left:0;right:0;z-index:2;background:var(--bg);paddin
 .days::-webkit-scrollbar{display:none}
 .days button{padding:4px 10px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:14px;white-space:nowrap}
 .days button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#111;font-weight:600}
-.days .now::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4d4d;margin-right:5px;vertical-align:1px}
+.days .now::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4d4d;margin-right:5px;vertical-align:1px;animation:live 2.4s ease-in-out infinite}
+@keyframes live{0%,100%{opacity:1;box-shadow:0 0 0 0 #ff4d4d66}50%{opacity:.55;box-shadow:0 0 0 3px #ff4d4d00}}
 .icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;touch-action:pan-y;padding:calc(var(--top) + 49px) max(4px,calc((100% - 760px) / 2)) calc(env(safe-area-inset-bottom) + 8px)}
@@ -82,7 +83,7 @@ dialog[open]{animation:push .3s cubic-bezier(.2,.8,.2,1)}
 dialog[open]::backdrop{animation:fade .3s}
 @keyframes push{from{transform:translateX(100%)}}
 @keyframes fade{from{opacity:0}}
-@media (prefers-reduced-motion:reduce){dialog[open],dialog[open]::backdrop{animation:none}img.th,img.hero,.row{transition:none}}
+@media (prefers-reduced-motion:reduce){dialog[open],dialog[open]::backdrop,.days .now::before{animation:none}img.th,img.hero,.row{transition:none}}
 @media (min-width:800px){dialog{height:auto;max-height:92vh;margin:4vh auto;border-radius:16px}}
 .bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:calc(var(--top) + 8px) 8px 8px;background:var(--bg)}
 .bar h2{font-size:18px;flex:1}
@@ -96,7 +97,7 @@ dialog[open]::backdrop{animation:fade .3s}
 .ht .m{font-size:13.5px}
 .chn{display:flex;align-items:center;gap:8px}
 .ht .lg{position:static;display:inline-flex;height:24px}
-.ht .ch{text-shadow:0 1px 6px #000c}
+@media (prefers-color-scheme:dark){.ht .ch{text-shadow:0 1px 6px #000c}}
 .ht .pg:not([hidden]){display:block}
 .ht .pg{position:static;margin-top:10px;height:3px;border-radius:2px;background:var(--line)}
 .hw.no{background:none;padding-top:calc(var(--top) + 52px)}
@@ -112,7 +113,10 @@ dialog[open]::backdrop{animation:fade .3s}
 .cast li{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:14px}
 .cast small{color:var(--dim)}
 .next{list-style:none;padding:0}
-.next li{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px}
+.next li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px;cursor:pointer}
+.next li span{flex:1}
+.next li:active{opacity:.6}
+.chev{width:8px;height:8px;border:solid var(--dim);border-width:2px 2px 0 0;transform:rotate(45deg);margin-right:6px}
 .next b{font-variant-numeric:tabular-nums;color:var(--dim);font-weight:600}
 .back{position:absolute;z-index:2;top:calc(var(--top) + 8px);left:8px;background:#000a;color:#fff}
 .sec{padding:4px 12px 12px}
@@ -157,10 +161,9 @@ const KEY = 'tv.channels';
 const NOW = 'jetzt';
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const local = (h, size) => `img/${h}-${size}.avif`;
 
-// "Jetzt" lädt die Bilder live: fairu skaliert selbst, alles andere (TV
-// Spielfilm liefert bis zu 6 MB große Originale) über den Resize-Dienst wsrv.nl.
+// Bilder kommen live: fairu skaliert selbst, alles andere (TV Spielfilm
+// liefert bis zu 6 MB große Originale) über den Resize-Dienst wsrv.nl.
 function live(src, w) {
   if (!src) return '';
   if (src.startsWith('files.fairu.app')) return `https://${src}?width=${w}&format=webp&quality=70`;
@@ -232,13 +235,13 @@ function channelMark(id) {
 function item2015(date, id) {
   const it = list.items[date]?.[id];
   if (!it) return null;
-  const [title, start, stop, genre, year, hash, rating] = it;
+  const [title, start, stop, genre, year, src, rating] = it;
   const s = at(date, start);
   let e = at(date, stop);
   if (e <= s) e += 864e5;
   return {
     id, title, genre, year, rating, s, e, start, stop,
-    th: hash && local(hash, 's'), hero: hash && local(hash, 'l'),
+    th: live(src, 320), hero: live(src, 960), live: true,
     x: () => getDetails(date).then((d) => d[id] || {}),
   };
 }
@@ -261,13 +264,12 @@ function itemNow(date, id, progs, t = Date.now()) {
       id, title: p[2], genre: p[3], year: p[5], rating: p[6], s, e, start: hm(s), stop: hm(e),
       th: live(p[4], 320), hero: live(p[4], 960), live: true,
       x: () => getSchedX(date, id).then((x) => x[j] || {}),
+      // erst beim Öffnen gebaut: jede Sendung hat ihr eigenes "Danach"
+      next: () => progs.slice(j + 1, j + 4).map((q, k) => mk(q, j + 1 + k)),
     };
   };
   const i = progs.findIndex((p) => base + p[0] * 6e4 <= t && t < base + p[1] * 6e4);
-  if (i < 0) return null;
-  const cur = mk(progs[i], i);
-  cur.next = progs.slice(i + 1, i + 4).map((p, k) => mk(p, i + 1 + k));
-  return cur;
+  return i < 0 ? null : mk(progs[i], i);
 }
 
 // ---- Liste ---------------------------------------------------------------------
@@ -410,31 +412,41 @@ function meta(it) {
 
 const COUNTRY = { D: 'Deutschland', A: 'Österreich', CH: 'Schweiz', GB: 'Großbritannien', F: 'Frankreich', I: 'Italien', E: 'Spanien' };
 
-async function openDetail(id) {
-  const it = shown.get(id);
+// Verlauf innerhalb der Detailansicht ("Danach" -> Sendung -> …), damit
+// Zurück schrittweise zurückgeht und erst am Anfang schließt.
+const trail = [];
+let current = null;
+
+// dir: 0 = aus der Liste, 1 = weiter zu "Danach", -1 = zurück
+async function openDetail(it, dir = 0) {
   if (!it) return;
+  const id = it.id;
+  current = it;
   const cors = it.live ? ' crossorigin="anonymous"' : '';
   const hero = it.hero ? `<img class="hero" src="${it.hero}"${cors} alt="">` : '';
   const bg = it.th ? ` style="background-image:url('${it.th}')"` : '';
   // Name immer auch als Text: manche Logos (z. B. ARD alpha) erkennt man nicht.
   const mark = `<div class="chn">${logos.has(id) ? channelMark(id) : ''}<span class="ch">${esc(names.get(id))}</span></div>`;
   dlg.innerHTML = `<div class="hw${hero ? '' : ' no'}"${bg}>${hero}<div class="ht">${mark}<h2>${esc(it.title)}</h2><div class="m">${meta(it)}</div>${progressBar(it)}</div></div>${backBtn}<div class="dt"><div id="dx"></div></div>`;
-  dlg.dataset.id = id;
   settleImages(dlg);
   updateProgress();
   if (!dlg.open) { dlg.showModal(); history.pushState({ d: 1 }, ''); }
+  else if (dir && !reduce.matches && Date.now() - edgeSwipe > 1500) {
+    dlg.animate([{ transform: `translateX(${dir * 35}%)`, opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
   dlg.scrollTop = 0;
   let x = {};
   try { x = await it.x(); } catch {}
   const dx = $('#dx');
-  if (!dlg.open || !dx || dlg.dataset.id !== id) return;
+  if (!dlg.open || !dx || current !== it) return;
   const extra = [x.ep, COUNTRY[x.country] ?? x.country].filter(Boolean).map(esc);
   let body = x.sub ? `<div class="sub">${esc(x.sub)}</div>` : '';
   if (extra.length) body += `<div class="m">${extra.join(' · ')}</div>`;
   if (x.desc) body += x.desc.split(/\n+/).map((p) => `<p>${esc(p)}</p>`).join('');
   if (x.cast) body += `<h3>Besetzung</h3><ul class="cast">${x.cast.map((a) => `<li>${esc(a.n)}${a.r ? ` <small>${esc(a.r)}</small>` : ''}</li>`).join('')}</ul>`;
   if (x.dir) body += `<h3>Regie</h3><p>${x.dir.map(esc).join(', ')}</p>`;
-  if (it.next?.length) body += `<h3>Danach</h3><ul class="next">${it.next.map((n) => `<li><b>${n.start}</b><span>${esc(n.title)}</span></li>`).join('')}</ul>`;
+  it.nextList ??= it.next?.() ?? [];
+  if (it.nextList.length) body += `<h3>Danach</h3><ul class="next">${it.nextList.map((n, k) => `<li data-k="${k}"><b>${n.start}</b><span>${esc(n.title)}</span><i class="chev"></i></li>`).join('')}</ul>`;
   dx.innerHTML = body;
 }
 
@@ -450,7 +462,18 @@ function closeDialogs() {
     try { d.animate([{ opacity: 1 }, { opacity: 0 }], { ...EASE_OUT, pseudoElement: '::backdrop' }); } catch {}
   }
 }
-addEventListener('popstate', closeDialogs);
+addEventListener('popstate', () => {
+  if (dlg.open && trail.length) openDetail(trail.pop(), -1);
+  else closeDialogs();
+});
+dlg.addEventListener('click', (e) => {
+  const li = e.target.closest('.next li[data-k]');
+  if (!li || !current) return;
+  trail.push(current);
+  history.pushState({ d: trail.length + 1 }, '');
+  openDetail(current.nextList[li.dataset.k], 1);
+});
+dlg.addEventListener('close', () => { trail.length = 0; });
 for (const d of document.querySelectorAll('dialog')) {
   d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) history.back(); });
   d.addEventListener('cancel', (e) => { e.preventDefault(); history.back(); });
@@ -459,7 +482,7 @@ for (const d of document.querySelectorAll('dialog')) {
 
 $('#list').addEventListener('click', (e) => {
   const row = e.target.closest('.row[data-id]');
-  if (row) openDetail(row.dataset.id);
+  if (row) openDetail(shown.get(row.dataset.id));
 });
 $('#days').addEventListener('click', (e) => {
   const b = e.target.closest('button');
@@ -566,8 +589,8 @@ function prefetch() {
   getDetails(list.days.includes(today) ? today : list.days[0]);
   const seen = new Set();
   for (const d of list.days) for (const id of mine) {
-    const h = list.items[d]?.[id]?.[5];
-    if (h && !seen.has(h)) { seen.add(h); fetch(local(h, 's'), { priority: 'low' }).catch(() => {}); }
+    const src = list.items[d]?.[id]?.[5];
+    if (src && !seen.has(src)) { seen.add(src); fetch(live(src, 320), { mode: 'cors', priority: 'low' }).catch(() => {}); }
   }
   for (const id of myChannels()) { getSched(today, id); getSchedX(today, id); }
 }

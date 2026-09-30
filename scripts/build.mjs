@@ -1,8 +1,11 @@
 // Holt die XMLTV-Feeds, schneidet für jeden Sender die Sendung heraus, die um
 // 20:15 läuft, verkleinert die Bilder und schreibt alles nach dist/.
 //
-//   node scripts/build.mjs            voll, mit Bildern
-//   node scripts/build.mjs --no-img   schnell, ohne Bilder (lokales Testen)
+//   node scripts/build.mjs            voll, mit Senderlogos
+//   node scripts/build.mjs --no-img   ohne Logos (lokales Testen)
+//
+// Vorschaubilder verarbeitet der Build nicht: die App lädt sie live über die
+// Resize-Dienste (fairu selbst, sonst wsrv.nl).
 
 import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
@@ -172,17 +175,7 @@ function merge(feeds) {
   return out;
 }
 
-// ---- Bilder ---------------------------------------------------------------
-
-const SIZES = { s: [320, 180], l: [960, 540] };
-
-// Vorverkleinertes JPEG als Ausgangsmaterial. fairu skaliert selbst; für alle
-// anderen (TV Spielfilm liefert bis zu 6 MB große Originale) übernimmt das
-// wsrv.nl – nur hier im Build, nie im Browser.
-function sourceUrl(src) {
-  if (src.includes('files.fairu.app')) return `${src.split('?')[0]}?width=960&format=jpg&quality=92`;
-  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=960&we&output=jpg&q=92`;
-}
+// ---- Hilfen --------------------------------------------------------------
 
 const exists = (f) =>
   stat(f).then(
@@ -190,64 +183,12 @@ const exists = (f) =>
     () => false,
   );
 
-// AVIF ist bei gleicher Anmutung rund ein Drittel kleiner als WebP. effort 2
-// statt Standard 4: siebenmal schneller, nur ~4 % größer.
-async function fetchImage(src, hash) {
-  const files = Object.fromEntries(
-    Object.keys(SIZES).map((k) => [k, join(CACHE, 'img', `${hash}-${k}.avif`)]),
-  );
-  if ((await Promise.all(Object.values(files).map(exists))).every(Boolean)) return files;
-  const res = await fetch(sourceUrl(src), { signal: AbortSignal.timeout(60_000) });
-  const type = res.headers.get('content-type') ?? '';
-  if (!res.ok || !type.startsWith('image/')) throw new Error(`${res.status} ${type}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  // Gleich auf 16:9 zuschneiden, wie es angezeigt wird; "attention" hält
-  // Gesichter und Motiv im Bild statt stur die Mitte.
-  for (const [k, [width, height]] of Object.entries(SIZES)) {
-    await sharp(buf)
-      .resize({ width, height, fit: 'cover', position: sharp.strategy.attention })
-      .avif({ quality: 50, effort: 2 })
-      .toFile(files[k]);
-  }
-  return files;
-}
-
 async function pool(items, n, fn) {
   let i = 0;
   const worker = async () => {
     while (i < items.length) await fn(items[i++]);
   };
   await Promise.all(Array.from({ length: n }, worker));
-}
-
-async function images(channels) {
-  const bySrc = new Map();
-  for (const ch of channels.values())
-    for (const p of ch.days.values()) {
-      if (!p.img) continue;
-      // p.img bleibt die Quell-URL: "Jetzt" lädt die Bilder live.
-      p.hash = createHash('sha1').update(p.img).digest('hex').slice(0, 12);
-      bySrc.set(p.img, p.hash);
-    }
-  if (!WITH_IMG) {
-    for (const ch of channels.values()) for (const p of ch.days.values()) p.hash = '';
-    return;
-  }
-  await mkdir(join(CACHE, 'img'), { recursive: true });
-  await mkdir(join(DIST, 'img'), { recursive: true });
-  const failed = new Set();
-  await pool([...bySrc], 8, async ([src, hash]) => {
-    try {
-      const files = await fetchImage(src, hash);
-      for (const [size, file] of Object.entries(files))
-        await cp(file, join(DIST, 'img', `${hash}-${size}.avif`));
-    } catch (e) {
-      failed.add(hash);
-      console.warn(`Bild ${src}: ${e.message}`);
-    }
-  });
-  for (const ch of channels.values()) for (const p of ch.days.values()) if (failed.has(p.hash)) p.hash = '';
-  console.info(`Bilder: ${bySrc.size - failed.size} ok, ${failed.size} fehlgeschlagen`);
 }
 
 // ---- Senderlogos ----------------------------------------------------------
@@ -404,7 +345,7 @@ async function write(channels, days) {
         hhmm(p.stop, TZ),
         p.genres[0] ?? '',
         year,
-        p.hash ?? '',
+        p.img.replace(/^https:\/\//, ''),
         p.rating,
       ];
       details[id] = detail(p);
@@ -449,7 +390,6 @@ async function main() {
   }
   const channels = merge(feeds);
   for (const [id, ch] of channels) if (!ch.days.size) channels.delete(id);
-  await images(channels);
   if (WITH_IMG) await logos(channels);
   await write(channels, days);
   const today = days[0].date;
