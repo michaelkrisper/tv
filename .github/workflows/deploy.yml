@@ -43,7 +43,11 @@ jobs:
           key: img-${{ github.run_id }}
           restore-keys: img-
 
+      # Token nur für die GitHub-API (Verzeichnis der Senderlogos), sonst greift
+      # das Limit für anonyme Abrufe von geteilten Runner-Adressen.
       - run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       # Nur Bilder der letzten 14 Tage aufheben, damit der Cache nicht wächst.
       - run: find .cache/img -type f -mtime +14 -delete || true

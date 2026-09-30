@@ -1,7 +1,7 @@
 // GitHub Pages erlaubt keine eigenen Cache-Header (fix max-age=600), deshalb
 // regelt der Service Worker das Caching selbst:
 //   Hülle   vorab geladen, immer aus dem Cache; neue Version = neuer Worker
-//   Bilder  Namen sind Hashes, also unveränderlich: Cache zuerst
+//   Bilder  Namen sind Hashes bzw. feste URLs der Resize-Dienste: Cache zuerst
 //   Daten   sofort aus dem Cache, im Hintergrund neu; bei Änderung Bescheid geben
 
 const VERSION = '__VERSION__';
@@ -9,6 +9,8 @@ const SHELL = `shell-${VERSION}`;
 const DATA = 'data';
 const IMG = 'img';
 const MAX_IMG = 800;
+// Live-Bilder für "Jetzt"; beide Dienste senden CORS, also cachebar.
+const IMG_HOSTS = ['wsrv.nl', 'files.fairu.app'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -51,8 +53,19 @@ async function notify(url) {
   for (const c of await self.clients.matchAll()) c.postMessage(url.endsWith('list.json') ? 'list' : 'data');
 }
 
+// Tagesdateien von gestern und älter wegräumen.
+async function purge(cache) {
+  const d = new Date(Date.now() - 864e5);
+  const cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  for (const k of await cache.keys()) {
+    const m = /data\/(\d{4}-\d\d-\d\d)/.exec(k.url);
+    if (m && m[1] < cutoff) cache.delete(k);
+  }
+}
+
 async function data(req, e) {
   const cache = await caches.open(DATA);
+  if (Math.random() < 0.05) e.waitUntil(purge(cache));
   const hit = await cache.match(req);
   const fresh = fetch(req, { cache: 'no-cache' }).then(async (res) => {
     if (res.ok) {
@@ -80,7 +93,9 @@ async function shell(req) {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== location.origin) return;
+  if (req.method !== 'GET') return;
+  if (IMG_HOSTS.includes(url.hostname)) return e.respondWith(image(req));
+  if (url.origin !== location.origin) return;
   const path = url.pathname.slice(new URL(self.registration.scope).pathname.length);
   if (path.startsWith('img/')) e.respondWith(image(req));
   else if (path.startsWith('data/')) e.respondWith(data(req, e));

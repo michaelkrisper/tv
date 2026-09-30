@@ -1,11 +1,13 @@
 # TV
 
-Was läuft heute um 20:15? Eine Seite, alle Sender, auf einen Blick.
+Was läuft heute um 20:15 – und was läuft jetzt? Eine Seite, alle Sender, auf einen Blick.
 
 **https://michaelkrisper.github.io/tv/**
 
-- Pro Sender die Sendung, die um 20:15 läuft, mit Vorschaubild, Genre, Jahr und IMDb-Wertung
-- Antippen zeigt Beschreibung, Besetzung mit Rollen und Regie
+- Pro Sender die Sendung, die um 20:15 läuft, mit Senderlogo, Vorschaubild, Genre und Dauer
+- **Jetzt**: was gerade läuft, mit Restzeit und Fortschritt; Tage und Jetzt per Wischen wechseln
+- Antippen zeigt Beschreibung, Besetzung mit Rollen, Regie, Jahr, IMDb-Wertung und (bei Jetzt) was danach kommt
+- Filme ab IMDb 7 sind als Tipp markiert
 - Heute und die nächsten drei Tage
 - Sender auswählen und per Ziehen sortieren (bleibt im Browser gespeichert)
 - Als App installierbar (PWA), funktioniert offline mit dem zuletzt geladenen Stand
@@ -19,9 +21,16 @@ Push und zweimal täglich:
    [epgshare01](https://epgshare01.online/) (je rund 60 MB entpackt),
 2. schneidet pro Sender die Sendung heraus, die um 20:15 (Europe/Vienna) läuft,
    und ergänzt Lücken aus dem jeweils anderen Feed,
-3. lädt jedes Vorschaubild einmal, schneidet es auf 16:9 zu und speichert es als
-   AVIF (Thumbnail ~5 KB, Detailbild ~30 KB),
-4. veröffentlicht alles auf GitHub Pages.
+3. schreibt für heute und morgen pro Sender das ganze Tagesprogramm (für
+   „Jetzt“, ~1 KB gzip je Sender; Details in einer eigenen Datei),
+4. lädt jedes 20:15-Vorschaubild einmal, schneidet es auf 16:9 zu und speichert
+   es als AVIF (Thumbnail ~5 KB, Detailbild ~30 KB),
+5. holt die Senderlogos aus [tv-logo/tv-logos](https://github.com/tv-logo/tv-logos)
+   und legt weiße Logos auf ein dunkles Plättchen,
+6. veröffentlicht alles auf GitHub Pages.
+
+Die Bilder der Jetzt-Ansicht lädt die App live: fairu skaliert selbst, alles
+andere verkleinert [wsrv.nl](https://wsrv.nl/). Der Service Worker cacht sie.
 
 Die App selbst ist eine einzige HTML-Datei mit Vanilla JS und CSS inline, ohne
 Framework und ohne Build-Schritt. Beim Start lädt sie `data/list.json`
