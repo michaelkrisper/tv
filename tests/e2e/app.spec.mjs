@@ -125,7 +125,7 @@ test.describe('Datenmenge', () => {
   // lädt zusätzlich nur die Hülle (~15 KB) vor.
   test.use({ serviceWorkers: 'block' });
 
-  test('erster Start inklusive Vorladen bleibt unter 1 MB', async ({ page }) => {
+  test('erster Start inklusive Vorladen bleibt unter 2 MB', async ({ page }) => {
     let bytes = 0;
     let done = 0;
     page.on('requestfinished', async (r) => {
@@ -135,12 +135,13 @@ test.describe('Datenmenge', () => {
     });
     await page.goto('./');
     await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
-    // Bis eine Weile nichts mehr nachkommt: das Vorladen läuft im Leerlauf.
+    // Bis eine Weile nichts mehr nachkommt: das Vorladen läuft im Leerlauf
+    // (requestIdleCallback mit bis zu 3 s Verzögerung).
     for (let last = -1; last !== done; ) {
       last = done;
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(4000);
     }
     console.info(`Erster Start: ${Math.round(bytes / 1024)} KB in ${done} Anfragen`);
-    expect(bytes).toBeLessThan(1024 * 1024);
+    expect(bytes).toBeLessThan(2 * 1024 * 1024);
   });
 });

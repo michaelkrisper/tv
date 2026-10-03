@@ -26,17 +26,17 @@ Die App ist eine einzige HTML-Datei (Vanilla JS und CSS inline, kein Framework) 
 lädt nur, was die eigenen Sender brauchen. Nach dem ersten Bild lädt sie im
 Leerlauf alles vor, damit Tageswechsel und Antippen ohne Netz gehen:
 
-| Erster Start (16 Standardsender, gzip) | |
+| Erster Start (24 Standardsender, gzip) | |
 |---|---|
-| Seite, Sendungsliste, Senderlogos | ~75 KB |
-| Tagesprogramme und alle Detailtexte | ~255 KB |
-| Vorschaubilder für alle Tage und „Jetzt“ | ~515 KB |
-| **Gesamt** | **~850 KB** |
+| Seite, Sendungsliste, Senderlogos | ~90 KB |
+| Tagesprogramme und alle Detailtexte | ~415 KB |
+| Vorschaubilder für alle Tage und „Jetzt“ | ~680 KB |
+| **Gesamt** | **~1,2 MB** |
 
 Danach kommen nur noch die großen Bilder der geöffneten Detailseite (~30 KB). Der
 Service Worker liefert alles sofort aus dem Cache und aktualisiert im Hintergrund.
 Mit aktivem Datensparmodus lädt die App nichts vor. Ein Browser-Test stellt sicher,
-dass der erste Start unter 1 MB bleibt.
+dass der erste Start unter 2 MB bleibt.
 
 ## Wie es funktioniert
 
@@ -91,7 +91,7 @@ npm run test:e2e                  # Browser-Tests gegen dist/
   Sommerzeit, Sendernamen, Zusammenführen der Feeds
 - **Browser** (`tests/e2e/`, Playwright, Chromium mit Handy-Viewport): Tage und
   Wischen, Detailseite mit „Danach“, Zurück per Knopf und Geste, Darstellung,
-  Statusleisten-Streifen für iOS, keine JavaScript-Fehler, Datenmenge unter 1 MB
+  Statusleisten-Streifen für iOS, keine JavaScript-Fehler, Datenmenge unter 2 MB
 
 ### Deployment
 

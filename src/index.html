@@ -175,8 +175,9 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
 
 <script>
 'use strict';
-const DEFAULT = ['orf1','orf2','orfiii','servustv','atv','puls4','daserste','zdf','rtl','sat1','prosieben','vox','kabeleins','rtlzwei','3sat','arte'];
-const KEY = 'tv.channels';
+const DEFAULT = ['orf1','orf2','tlc','tele5','prosieben','rtlzwei','puls4','zdfneo','n24doku','arte','servustv','superrtl','atvii','sixx','kabeleins','atv','sat1','3sat','daserste','ntv','rtl','zdf','orfiii','prosiebenmaxx'];
+// Neuer Schlüssel: alte Auswahl wird einmalig verworfen, damit die neue Standardliste gilt.
+const KEY = 'tv.channels.2';
 const NOW = 'jetzt';
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -204,6 +205,7 @@ function loadMine() {
   return null;
 }
 let mine = loadMine();
+try { localStorage.removeItem('tv.channels'); } catch {}
 const saveMine = () => localStorage.setItem(KEY, JSON.stringify(mine));
 const localIso = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const hm = (ms) => new Date(ms).toTimeString().slice(0, 5);
@@ -631,7 +633,7 @@ async function refresh() {
   catch { if (!list) $('#list').innerHTML = '<p class="msg">Programm konnte nicht geladen werden.</p>'; }
 }
 
-// Im Leerlauf vorladen, was die eigenen Sender brauchen (gesamt unter 1 MB):
+// Im Leerlauf vorladen, was die eigenen Sender brauchen (gesamt unter 2 MB):
 // zuerst die kleinen Daten (Details, Tagesprogramme für "Danach" und "Jetzt"),
 // dann die Vorschaubilder aller Tage und von "Jetzt". Danach geht Wechseln
 // und Antippen ohne Netz; nur die großen Bilder kommen erst beim Öffnen.
