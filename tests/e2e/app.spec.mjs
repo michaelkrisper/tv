@@ -95,10 +95,6 @@ test.describe('App', () => {
       };
     });
     expect(probe).toEqual({ cls: 'edge', position: 'fixed', widthRatio: 1, alpha: 1 });
-    // Der 1-px-Schubs hinterlässt nichts.
-    await expect
-      .poll(() => page.evaluate(() => [scrollY, document.documentElement.getAttribute('style') ?? '']))
-      .toEqual([0, '']);
   });
 
   test('Darstellung: hell, dunkel, automatisch', async ({ page }) => {

@@ -26,10 +26,12 @@ applyTheme();matchMedia('(prefers-color-scheme: light)').addEventListener('chang
 :root{--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
 [data-theme=light]{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}
 *{box-sizing:border-box;margin:0}
-/* Das Dokument scrollt nie, nur die Liste. */
-html,body{height:100%;overflow:hidden}
-html{-webkit-text-size-adjust:100%;touch-action:pan-x pan-y;overscroll-behavior:none}
-body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* Das Dokument selbst scrollt: nur dann klappt Safari seine Leisten ein und
+   prüft den Rand oben neu (sonst bleibt der Weichzeichner liegen). */
+html:has(dialog[open]){overflow:hidden}
+html{-webkit-text-size-adjust:100%;touch-action:pan-x pan-y;overscroll-behavior:none;scrollbar-width:none}
+html::-webkit-scrollbar{display:none}
+body{background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .dt p,.dt .sub,.cast{-webkit-user-select:text;user-select:text}
 img{-webkit-user-drag:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
@@ -49,8 +51,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 @keyframes live{0%,100%{opacity:1;box-shadow:0 0 0 0 #ff4d4d66}50%{opacity:.55;box-shadow:0 0 0 3px #ff4d4d00}}
 .icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;touch-action:pan-y;padding:calc(var(--top) + 6px) max(4px,calc((100% - 760px) / 2)) calc(64px + env(safe-area-inset-bottom) + 8px)}
-main::-webkit-scrollbar{display:none}
+main{display:block;min-height:100vh;touch-action:pan-y;padding:calc(var(--top) + 6px) max(4px,calc((100% - 760px) / 2)) calc(64px + env(safe-area-inset-bottom) + 8px)}
 .row{position:relative;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;width:100%;text-align:left;padding:4px;border-radius:var(--r);transition:transform .12s,background-color .12s}
 .row:active{background:var(--card);transform:scale(.985)}
 @media (hover:hover){.row:hover{background:var(--card)}}
@@ -91,6 +92,9 @@ dialog[open]::backdrop{animation:fade .3s}
 @keyframes fade{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){dialog[open],dialog[open]::backdrop,.days .now::before{animation:none}img.th,img.hero,.row{transition:none}}
 @media (min-width:800px){dialog{height:auto;max-height:92vh;margin:4vh auto;border-radius:16px}}
+/* iOS 26, Home-Bildschirm: das Fenster ist um die Statusleiste zu kurz
+   (WebKit-Bug 301108), bottom:0 und 100% enden zu früh. 100vh stimmt. */
+@media (display-mode:standalone) and (max-width:799px){.tabs{bottom:auto;top:calc(100vh - 64px - env(safe-area-inset-bottom))}dialog{height:100vh;max-height:100vh}}
 .bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:calc(var(--top) + 8px) 8px 8px;background:var(--bg)}
 .bar h2{font-size:18px;flex:1}
 /* Detail im Streaming-Stil: Bild läuft in den Hintergrund aus, Titel steht im Bild. */
@@ -126,7 +130,8 @@ dialog[open]::backdrop{animation:fade .3s}
 .chev{width:8px;height:8px;border:solid var(--dim);border-width:2px 2px 0 0;transform:rotate(45deg);margin-right:6px}
 .next b{font-variant-numeric:tabular-nums;color:var(--dim);font-weight:600}
 .nt{flex:none;width:56px;aspect-ratio:16/9;border-radius:4px;background:var(--card);object-fit:cover}
-.back{position:absolute;z-index:2;top:calc(var(--top) + 8px);left:8px;background:#000a;color:#fff}
+/* Bleibt beim Scrollen stehen; negativer Rand unten, damit es keinen Platz belegt. */
+.back{position:sticky;z-index:2;top:calc(var(--top) + 8px);margin:calc(var(--top) + 8px) 0 calc(-42px - var(--top)) 8px;background:#000a;color:#fff}
 .sec{padding:4px 12px 12px}
 .sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:14px 4px 6px}
 .chl{list-style:none;padding:0}
@@ -377,11 +382,11 @@ async function goView(v) {
   if (!dir) return;
   view = v;
   const el = $('#list');
-  if (reduce.matches || !el.animate) { await render(); el.scrollTop = 0; return; }
+  if (reduce.matches || !el.animate) { await render(); scrollTo(0, 0); return; }
   renderDays();
   await el.animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-dir * 40}px)`, opacity: 0 }], { duration: 110, easing: 'ease-in' }).finished;
   await renderList();
-  el.scrollTop = 0;
+  scrollTo(0, 0);
   el.animate([{ transform: `translateX(${dir * 40}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 170, easing: 'ease-out' });
 }
 
@@ -455,7 +460,7 @@ async function openDetail(it, dir = 0) {
   const bg = it.th ? ` style="background-image:url('${it.th}')"` : '';
   // Name immer auch als Text: manche Logos (z. B. ARD alpha) erkennt man nicht.
   const mark = `<div class="chn">${logos.has(id) ? channelMark(id) : ''}<span class="ch">${esc(names.get(id))}</span></div>`;
-  dlg.innerHTML = `<div class="hw${hero ? '' : ' no'}"${bg}>${hero}<div class="ht">${mark}<h2>${esc(it.title)}</h2><div class="m">${meta(it)}</div>${progressBar(it)}</div></div>${backBtn}<div class="dt"><div id="dx"></div></div>`;
+  dlg.innerHTML = `${backBtn}<div class="hw${hero ? '' : ' no'}"${bg}>${hero}<div class="ht">${mark}<h2>${esc(it.title)}</h2><div class="m">${meta(it)}</div>${progressBar(it)}</div></div><div class="dt"><div id="dx"></div></div>`;
   settleImages(dlg);
   updateProgress();
   if (!dlg.open) { dlg.showModal(); history.pushState({ d: 1 }, ''); }
@@ -653,28 +658,11 @@ setInterval(() => {
   else updateProgress();
 }, 20000);
 
-// iOS entscheidet beim Start (oft zu früh), ob oben der Weichzeichner liegt,
-// und prüft neu erst, wenn das Dokument selbst scrollt. Unseres scrollt nie
-// (nur die Liste), deshalb war es erst nach der Zurück-Geste scharf. Also
-// einmal unsichtbar 1 px scrollen: dafür muss das Dokument kurz scrollbar sein.
-function nudgeTopEdge() {
-  const r = document.documentElement;
-  r.style.overflow = 'auto';
-  r.style.height = 'calc(100% + 1px)';
-  scrollTo(0, 1);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    scrollTo(0, 0);
-    r.style.overflow = r.style.height = '';
-  }));
-}
-addEventListener('pageshow', () => requestAnimationFrame(nudgeTopEdge));
-
 refresh().then(() => {
-  requestAnimationFrame(nudgeTopEdge);
   (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 });
 });
 addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && list) { render(); refresh(); nudgeTopEdge(); }
+  if (document.visibilityState === 'visible' && list) { render(); refresh(); }
 });
 if ('serviceWorker' in navigator) {
   const sw = navigator.serviceWorker;
