@@ -19,7 +19,6 @@ import {
   parseChannels,
   programmes,
   slug,
-  titleKey,
   zonedToEpoch,
 } from './epg.mjs';
 
@@ -29,9 +28,9 @@ const CACHE = join(ROOT, '.cache');
 const TZ = 'Europe/Vienna';
 const HOUR = 20;
 const MINUTE = 15;
-const DAYS = 4;
-// Für "Jetzt": heute und morgen (nach Mitternacht, bevor der nächste Build läuft).
-const NOW_DAYS = 2;
+const DAYS = 3;
+// Tagesprogramm für alle Tage: "Jetzt" braucht heute und morgen (nach
+// Mitternacht, bevor der nächste Build läuft), 20:15 das "Danach".
 const NOW_SPAN = 30 * 3600_000;
 
 // Reihenfolge = Vorrang: der erste Feed liefert die Sendung, weitere ergänzen.
@@ -124,12 +123,11 @@ function channelEntry(byChannel, id, name) {
 function collect(xml, days, shouty) {
   const names = parseChannels(xml);
   const byChannel = new Map();
-  const nowDays = days.slice(0, NOW_DAYS);
   for (const p of programmes(xml)) {
     const day = days.find((d) => p.start <= d.at && d.at < p.stop);
     // Tagesprogramm für "Jetzt": alles, was von 0 Uhr bis 6 Uhr früh am
     // Folgetag läuft, damit auch nach Mitternacht die Datei des Tages reicht.
-    const inSched = nowDays.filter((d) => p.stop > d.from && p.start < d.from + NOW_SPAN);
+    const inSched = days.filter((d) => p.stop > d.from && p.start < d.from + NOW_SPAN);
     if (!day && !inSched.length) continue;
     const name = names.get(p.channel);
     if (!name || HIDDEN.test(name)) continue;
@@ -270,7 +268,6 @@ async function logos(channels) {
 // ---- Ausgabe --------------------------------------------------------------
 
 const detail = (p) => ({
-  k: titleKey(p.title),
   sub: p.sub || undefined,
   desc: p.desc || undefined,
   genres: p.genres.length ? p.genres : undefined,
@@ -280,12 +277,12 @@ const detail = (p) => ({
   ep: p.episode || undefined,
 });
 
-// "Jetzt": pro Sender und Tag das ganze Programm, Zeiten in Minuten ab 0 Uhr.
+// Pro Sender und Tag das ganze Programm, Zeiten in Minuten ab 0 Uhr.
 // Bilder als Quell-URL, die App lädt sie live und verkleinert. Die Details
 // liegen daneben in <id>.x.json (gleiche Reihenfolge) und kommen erst beim
 // Antippen – die Liste wird bei jedem Öffnen von "Jetzt" gelesen.
 async function writeSchedules(channels, ids, days, thisYear) {
-  for (const d of days.slice(0, NOW_DAYS)) {
+  for (const d of days) {
     await mkdir(join(DIST, 'data', d.date), { recursive: true });
     for (const id of ids) {
       const progs = channels.get(id).sched.get(d.date);
@@ -303,10 +300,7 @@ async function writeSchedules(channels, ids, days, thisYear) {
         p.year === thisYear && !p.actors.length ? null : p.year,
         p.rating,
       ]);
-      const x = sorted.map((p) => {
-        const { k, ...rest } = detail(p);
-        return rest;
-      });
+      const x = sorted.map(detail);
       await writeFile(join(DIST, 'data', d.date, `${id}.json`), JSON.stringify(out));
       await writeFile(join(DIST, 'data', d.date, `${id}.x.json`), JSON.stringify(x));
     }
@@ -327,7 +321,7 @@ async function write(channels, days) {
   const thisYear = Number(days[0].date.slice(0, 4));
   for (const { date } of days) {
     const items = {};
-    const details = {};
+    await mkdir(join(DIST, 'data', date), { recursive: true });
     for (const id of ids) {
       const p = channels.get(id).days.get(date);
       if (!p) continue;
@@ -344,10 +338,10 @@ async function write(channels, days) {
         p.img.replace(/^https:\/\//, ''),
         p.rating,
       ];
-      details[id] = detail(p);
+      // Details je Sender: die App lädt sie erst beim Antippen.
+      await writeFile(join(DIST, 'data', date, `${id}.d.json`), JSON.stringify(detail(p)));
     }
     list.items[date] = items;
-    await writeFile(join(DIST, 'data', `${date}.json`), JSON.stringify(details));
   }
   await writeFile(join(DIST, 'data', 'list.json'), JSON.stringify(list));
 

@@ -9,22 +9,22 @@
 <meta name="apple-mobile-web-app-title" content="TV">
 <title>TV – Was läuft jetzt und um 20:15?</title>
 <meta name="description" content="Was jetzt und heute um 20:15 im Fernsehen läuft – auf einen Blick.">
-<meta name="theme-color" content="#101218" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f4f5f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101218">
+<script>
+// Hell/Dunkel vor dem ersten Zeichnen setzen, sonst blitzt das falsche auf.
+// "auto" folgt dem Betriebssystem, auch wenn es sich dort umstellt.
+function applyTheme(){let p='auto';try{p=localStorage.getItem('tv.theme')||p}catch{}const t=p==='light'||p==='dark'?p:matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t;document.querySelector('meta[name=theme-color]').content=t==='light'?'#f4f5f8':'#101218';return p}
+applyTheme();matchMedia('(prefers-color-scheme: light)').addEventListener('change',applyTheme);
+</script>
 <link rel="preload" href="data/list.json" as="fetch" crossorigin>
 <link rel="preconnect" href="https://wsrv.nl" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<script>(function(r,u){if(/iP(hone|ad|od)/.test(u)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform)))r.classList.add('ios');else if(/Android/.test(u))r.classList.add('android')})(document.documentElement,navigator.userAgent)</script>
 <style>
-/* Oberkante für Inhalt. iOS 26 legt einen Weichzeichner ~40 pt unter die
-   Statusleiste, der sich von der Seite aus nicht abschalten lässt. Deshalb sitzt
-   die Navigation unten; oben rückt nur der Anfang der Liste tiefer. */
 :root{--top:env(safe-area-inset-top)}
-.ios{--top:calc(env(safe-area-inset-top) + 40px)}
 :root{--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
-@media (prefers-color-scheme:light){:root{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}}
+[data-theme=light]{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}
 *{box-sizing:border-box;margin:0}
 /* Das Dokument scrollt nie, nur die Liste. */
 html,body{height:100%;overflow:hidden}
@@ -34,29 +34,24 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);fon
 img{-webkit-user-drag:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 :focus:not(:focus-visible),dialog:focus{outline:none}
-/* Navigation unten als schwebende Leiste wie in iOS 26; die Liste läuft
-   darunter bis an den Bildschirmrand. Abstand zum Home-Balken nur so viel,
-   dass Antippen nicht mit der Wischgeste nach Hause kollidiert. */
-:root{--tabs-bottom:max(8px,calc(env(safe-area-inset-bottom) - 12px))}
-.tabs{position:fixed;z-index:2;left:max(8px,calc((100% - 760px) / 2));right:max(8px,calc((100% - 760px) / 2));bottom:var(--tabs-bottom);display:flex;align-items:center;gap:4px;height:46px;padding:0 4px 0 6px;border-radius:99px;background:color-mix(in srgb,var(--card) 80%,transparent);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);box-shadow:0 8px 28px #0005}
-.days{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
-/* Android (Material 3): Navigationsleiste über die volle Breite, bündig unten,
-   flach ohne Milchglas; Auswahl als Pille. */
-.android{--tabs-bottom:0px}
-.android .tabs{left:0;right:0;height:calc(64px + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom) 12px;border:0;border-radius:0;background:color-mix(in srgb,var(--card) 60%,var(--bg));-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
-.android .days{gap:6px}
-.android .days button{padding:8px 14px;font-weight:500}
-.android main{padding-bottom:calc(64px + env(safe-area-inset-bottom) + 8px)}
+/* Navigation unten (Material 3) auf allen Plattformen: volle Breite, bündig
+   unten, flach ohne Milchglas; Auswahl als Pille. */
+/* Statusleiste: deckender fixed-Streifen über die volle Breite. Nur dann zeichnet
+   iOS 26 dort keinen Weichzeichner, sondern füllt sie mit dieser Farbe
+   (WebKit: fixedContainerEdges; mehr als 10 px hoch, mind. 90 % breit). */
+.edge{position:fixed;z-index:3;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);pointer-events:none}
+.tabs{position:fixed;z-index:2;left:0;right:0;bottom:0;display:flex;align-items:center;gap:4px;height:calc(64px + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom) 12px;background:color-mix(in srgb,var(--card) 60%,var(--bg))}
+.days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
 .days::-webkit-scrollbar{display:none}
-.days button{padding:6px 11px;border-radius:99px;font-size:14px;white-space:nowrap}
+.days button{padding:8px 14px;border-radius:99px;font-size:14px;font-weight:500;white-space:nowrap}
 .days button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#111;font-weight:600}
 .days .now::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4d4d;margin-right:5px;vertical-align:1px;animation:live 2.4s ease-in-out infinite}
 @keyframes live{0%,100%{opacity:1;box-shadow:0 0 0 0 #ff4d4d66}50%{opacity:.55;box-shadow:0 0 0 3px #ff4d4d00}}
 .icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;touch-action:pan-y;padding:calc(var(--top) + 6px) max(4px,calc((100% - 760px) / 2)) calc(var(--tabs-bottom) + 58px)}
+main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;touch-action:pan-y;padding:calc(var(--top) + 6px) max(4px,calc((100% - 760px) / 2)) calc(64px + env(safe-area-inset-bottom) + 8px)}
 main::-webkit-scrollbar{display:none}
-.row{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;width:100%;text-align:left;padding:4px;border-radius:var(--r);transition:transform .12s,background-color .12s}
+.row{position:relative;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;width:100%;text-align:left;padding:4px;border-radius:var(--r);transition:transform .12s,background-color .12s}
 .row:active{background:var(--card);transform:scale(.985)}
 @media (hover:hover){.row:hover{background:var(--card)}}
 .tw{position:relative;border-radius:8px}
@@ -71,8 +66,9 @@ img.ok{opacity:1}
 .lg img{height:100%;width:auto;max-width:58px;object-fit:contain;object-position:left center;display:block;filter:drop-shadow(0 0 1px #000a) drop-shadow(0 1px 3px #000c)}
 .lg.k img{filter:drop-shadow(0 0 1px #fffc) drop-shadow(0 0 4px #fffa)}
 .tw.sc::after{content:"";position:absolute;inset:0;border-radius:8px;background:radial-gradient(110% 80% at 0 0,#000a,transparent 60%);pointer-events:none}
-.pg{position:absolute;left:0;right:0;bottom:0;height:3px;background:#0009;border-radius:0 0 8px 8px;overflow:hidden}
-.pg i{display:block;height:100%;background:var(--acc)}
+/* Fortschritt über die ganze Zeile, unten im Rand der Zeile. */
+.pg{position:absolute;left:4px;right:4px;bottom:0;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+.pg i{display:block;height:100%;background:#ff4d4d}
 .pg[hidden]{display:none}
 .t{display:block;font-weight:650;font-size:16px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .m{font-size:12.5px;line-height:1.3;color:var(--dim);font-variant-numeric:tabular-nums}
@@ -80,7 +76,7 @@ img.ok{opacity:1}
 .g{display:inline-flex;min-width:0;align-items:center;gap:3px;padding:0 5px 0 4px;border-radius:5px;background:hsl(var(--h) var(--s) 55% / .17);color:hsl(var(--h) var(--s) 76%)}
 .g span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .g svg{width:12px;height:12px;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-@media (prefers-color-scheme:light){.g{background:hsl(var(--h) var(--s) 50% / .13);color:hsl(var(--h) var(--s) 32%)}}
+[data-theme=light] .g{background:hsl(var(--h) var(--s) 50% / .13);color:hsl(var(--h) var(--s) 32%)}
 .ml{display:flex;align-items:center;gap:8px}
 .ml>:first-child{min-width:0;display:flex}
 .ml .tr{margin-left:auto;flex:none;white-space:nowrap}
@@ -103,12 +99,12 @@ dialog[open]::backdrop{animation:fade .3s}
 .hw::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,#0007 0,transparent 20%,transparent 38%,var(--bg) 98%);pointer-events:none}
 .ht{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:0 16px 2px}
 .ht h2{font-size:28px;line-height:1.12;font-weight:800;letter-spacing:-.3px;margin:6px 0 5px;text-wrap:balance;text-shadow:0 1px 14px #000a}
-@media (prefers-color-scheme:light){.ht h2{text-shadow:0 1px 12px #fffc}}
+[data-theme=light] .ht h2{text-shadow:0 1px 12px #fffc}
 .ht .m{font-size:13.5px}
 .chn{display:flex;align-items:center;gap:8px}
 .ht .lg{position:static;display:inline-flex;height:24px}
 .ht .lg img{max-width:96px}
-@media (prefers-color-scheme:dark){.ht .ch{text-shadow:0 1px 6px #000c}}
+[data-theme=dark] .ht .ch{text-shadow:0 1px 6px #000c}
 .ht .pg:not([hidden]){display:block}
 .ht .pg{position:static;margin-top:10px;height:3px;border-radius:2px;background:var(--line)}
 .hw.no{background:none;padding-top:calc(var(--top) + 52px)}
@@ -129,6 +125,7 @@ dialog[open]::backdrop{animation:fade .3s}
 .next li:active{opacity:.6}
 .chev{width:8px;height:8px;border:solid var(--dim);border-width:2px 2px 0 0;transform:rotate(45deg);margin-right:6px}
 .next b{font-variant-numeric:tabular-nums;color:var(--dim);font-weight:600}
+.nt{flex:none;width:56px;aspect-ratio:16/9;border-radius:4px;background:var(--card);object-fit:cover}
 .back{position:absolute;z-index:2;top:calc(var(--top) + 8px);left:8px;background:#000a;color:#fff}
 .sec{padding:4px 12px 12px}
 .sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:14px 4px 6px}
@@ -141,21 +138,27 @@ dialog[open]::backdrop{animation:fade .3s}
 .add li{cursor:pointer}
 .add li::after{content:"+";font-size:22px;color:var(--acc);padding:0 12px}
 input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);margin-bottom:8px}
+.seg{display:flex;gap:2px;padding:3px;border-radius:99px;background:var(--card);border:1px solid var(--line)}
+.seg button{flex:1;padding:8px 6px;border-radius:99px;font-size:14px;font-weight:500}
+.seg [aria-checked=true]{background:var(--acc);color:#111;font-weight:600}
 .reset{color:var(--dim);font-size:14px;text-decoration:underline;padding:8px 4px}
 </style>
 </head>
 <body>
+<div class="edge" aria-hidden="true"></div>
 <main id="list"><p class="msg">Lade Programm …</p></main>
 <footer class="tabs">
   <nav class="days" id="days"></nav>
-  <button class="icon" id="gear" aria-label="Sender auswählen"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--bg)"/><circle cx="15" cy="12" r="2" fill="var(--bg)"/><circle cx="8" cy="18" r="2" fill="var(--bg)"/></svg></button>
+  <button class="icon" id="gear" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--bg)"/><circle cx="15" cy="12" r="2" fill="var(--bg)"/><circle cx="8" cy="18" r="2" fill="var(--bg)"/></svg></button>
 </footer>
 
 <dialog id="detail" autofocus></dialog>
 
 <dialog id="settings" autofocus>
-  <div class="bar"><button class="icon" data-close aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Sender</h2></div>
+  <div class="bar"><button class="icon" data-close aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Einstellungen</h2></div>
   <div class="sec">
+    <h3>Darstellung</h3>
+    <div class="seg" id="theme" role="radiogroup" aria-label="Darstellung"><button role="radio" data-v="auto">Automatisch</button><button role="radio" data-v="light">Hell</button><button role="radio" data-v="dark">Dunkel</button></div>
     <h3>Meine Sender · zum Sortieren ziehen</h3>
     <ul class="chl" id="mine"></ul>
     <h3>Weitere Sender</h3>
@@ -253,7 +256,12 @@ function item2015(date, id) {
   return {
     id, title, genre, year, rating, s, e, start, stop,
     th: live(src, 320), hero: live(src, 960), live: true,
-    x: () => getDetails(date).then((d) => d[id] || {}),
+    x: () => getDetails(date, id),
+    next: () => getSched(date, id).then((progs) => {
+      const base = at(date, '00:00');
+      const j = progs.findIndex((p) => base + p[0] * 6e4 >= e);
+      return j < 0 ? [] : progs.slice(j, j + 3).map((q, k) => schedItem(date, id, progs, j + k));
+    }),
   };
 }
 
@@ -261,26 +269,29 @@ function getJson(cache, url, fallback) {
   if (!cache.has(url)) cache.set(url, fetch(url).then((r) => (r.ok ? r.json() : fallback)).catch(() => { cache.delete(url); return fallback; }));
   return cache.get(url);
 }
-const getDetails = (date) => getJson(details, `data/${date}.json`, {});
+const getDetails = (date, id) => getJson(details, `data/${date}/${id}.d.json`, {});
 const getSched = (date, id) => getJson(scheds, `data/${date}/${id}.json`, []);
 const getSchedX = (date, id) => getJson(schedX, `data/${date}/${id}.x.json`, []);
 
 // Programm eines Tages: Zeiten sind Minuten ab 0 Uhr dieses Tages.
+function schedItem(date, id, progs, j) {
+  const p = progs[j];
+  const base = at(date, '00:00');
+  const s = base + p[0] * 6e4;
+  const e = base + p[1] * 6e4;
+  return {
+    id, title: p[2], genre: p[3], year: p[5], rating: p[6], s, e, start: hm(s), stop: hm(e),
+    th: live(p[4], 320), hero: live(p[4], 960), sm: live(p[4], 160), live: true,
+    x: () => getSchedX(date, id).then((x) => x[j] || {}),
+    // erst beim Öffnen gebaut: jede Sendung hat ihr eigenes "Danach"
+    next: () => progs.slice(j + 1, j + 4).map((q, k) => schedItem(date, id, progs, j + 1 + k)),
+  };
+}
+
 function itemNow(date, id, progs, t = Date.now()) {
   const base = at(date, '00:00');
-  const mk = (p, j) => {
-    const s = base + p[0] * 6e4;
-    const e = base + p[1] * 6e4;
-    return {
-      id, title: p[2], genre: p[3], year: p[5], rating: p[6], s, e, start: hm(s), stop: hm(e),
-      th: live(p[4], 320), hero: live(p[4], 960), live: true,
-      x: () => getSchedX(date, id).then((x) => x[j] || {}),
-      // erst beim Öffnen gebaut: jede Sendung hat ihr eigenes "Danach"
-      next: () => progs.slice(j + 1, j + 4).map((q, k) => mk(q, j + 1 + k)),
-    };
-  };
   const i = progs.findIndex((p) => base + p[0] * 6e4 <= t && t < base + p[1] * 6e4);
-  return i < 0 ? null : mk(progs[i], i);
+  return i < 0 ? null : schedItem(date, id, progs, i);
 }
 
 // ---- Liste ---------------------------------------------------------------------
@@ -301,7 +312,7 @@ function rowHtml(id, it, i) {
   const cors = it.live ? ' crossorigin="anonymous"' : '';
   const th = it.th ? `<img class="th" src="${it.th}" ${prio}${cors} decoding="async" width="320" height="180" alt="">` : '<div class="th"></div>';
   const scrim = logos.get(id) === 'w' ? ' sc' : '';
-  return `<button class="row" data-id="${id}"><div class="tw${scrim}">${th}${mark}${progressBar(it)}</div>`
+  return `<button class="row" data-id="${id}"><div class="tw${scrim}">${th}${mark}</div>${progressBar(it)}`
     + `<div><span class="t">${esc(it.title)}</span><span class="m ml"><span>${it.genre ? genreChip(it.genre) : ''}</span><span class="tr">${rightText(it)}</span></span></div></button>`;
 }
 
@@ -374,23 +385,29 @@ async function goView(v) {
   el.animate([{ transform: `translateX(${dir * 40}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 170, easing: 'ease-out' });
 }
 
-// Zwischen den Ansichten wischen. Nicht vom Rand aus: das ist die Zurück-Geste.
-let touch = null;
-$('#list').addEventListener('touchstart', (e) => {
-  const t = e.touches[0];
-  touch = t.clientX < 24 || t.clientX > innerWidth - 24 ? null : { x: t.clientX, y: t.clientY, at: Date.now() };
-}, { passive: true });
-$('#list').addEventListener('touchend', (e) => {
-  if (!touch || Date.now() - touch.at > 600) return;
-  const t = e.changedTouches[0];
-  const dx = t.clientX - touch.x;
-  const dy = t.clientY - touch.y;
-  touch = null;
-  if (Math.abs(dx) < 60 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+// Waagrecht wischen. Nicht vom Rand aus: das ist die Zurück-Geste des Systems.
+function onSwipe(el, fn) {
+  let touch = null;
+  el.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touch = t.clientX < 24 || t.clientX > innerWidth - 24 ? null : { x: t.clientX, y: t.clientY, at: Date.now() };
+  }, { passive: true });
+  el.addEventListener('touchend', (e) => {
+    if (!touch || Date.now() - touch.at > 600) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touch.x;
+    const dy = t.clientY - touch.y;
+    touch = null;
+    if (Math.abs(dx) >= 60 && Math.abs(dx) >= 2 * Math.abs(dy)) fn(dx < 0 ? 1 : -1);
+  }, { passive: true });
+}
+
+// Zwischen den Ansichten wischen.
+onSwipe($('#list'), (dir) => {
   const vs = views();
-  const next = vs[vs.indexOf(view) + (dx < 0 ? 1 : -1)];
+  const next = vs[vs.indexOf(view) + dir];
   if (next) goView(next);
-}, { passive: true });
+});
 
 async function getList() {
   const res = await fetch('data/list.json');
@@ -446,8 +463,10 @@ async function openDetail(it, dir = 0) {
     dlg.animate([{ transform: `translateX(${dir * 35}%)`, opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
   }
   dlg.scrollTop = 0;
-  let x = {};
-  try { x = await it.x(); } catch {}
+  const [x, next] = await Promise.all([
+    it.x().catch(() => ({})),
+    Promise.resolve(it.nextList ?? it.next?.() ?? []).catch(() => []),
+  ]);
   const dx = $('#dx');
   if (!dlg.open || !dx || current !== it) return;
   const extra = [x.ep, COUNTRY[x.country] ?? x.country].filter(Boolean).map(esc);
@@ -456,8 +475,9 @@ async function openDetail(it, dir = 0) {
   if (x.desc) body += x.desc.split(/\n+/).map((p) => `<p>${esc(p)}</p>`).join('');
   if (x.cast) body += `<h3>Besetzung</h3><ul class="cast">${x.cast.map((a) => `<li>${esc(a.n)}${a.r ? ` <small>${esc(a.r)}</small>` : ''}</li>`).join('')}</ul>`;
   if (x.dir) body += `<h3>Regie</h3><p>${x.dir.map(esc).join(', ')}</p>`;
-  it.nextList ??= it.next?.() ?? [];
-  if (it.nextList.length) body += `<h3>Danach</h3><ul class="next">${it.nextList.map((n, k) => `<li data-k="${k}"><b>${n.start}</b><span>${esc(n.title)}</span><i class="chev"></i></li>`).join('')}</ul>`;
+  it.nextList = next;
+  const small = (n) => (n.sm ? `<img class="nt" src="${n.sm}" loading="lazy" decoding="async" alt="">` : '<span class="nt"></span>');
+  if (it.nextList.length) body += `<h3>Danach</h3><ul class="next">${it.nextList.map((n, k) => `<li data-k="${k}"><b>${n.start}</b>${small(n)}<span>${esc(n.title)}</span><i class="chev"></i></li>`).join('')}</ul>`;
   dx.innerHTML = body;
 }
 
@@ -485,6 +505,8 @@ dlg.addEventListener('click', (e) => {
   openDetail(current.nextList[li.dataset.k], 1);
 });
 dlg.addEventListener('close', () => { trail.length = 0; });
+// In der Detailseite nach rechts wischen: zurück.
+onSwipe(dlg, (dir) => { if (dir < 0) history.back(); });
 for (const d of document.querySelectorAll('dialog')) {
   d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) history.back(); });
   d.addEventListener('cancel', (e) => { e.preventDefault(); history.back(); });
@@ -498,6 +520,18 @@ $('#list').addEventListener('click', (e) => {
 $('#days').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (b) goView(b.dataset.day);
+});
+
+// ---- Darstellung -------------------------------------------------------------
+function renderTheme(pref) {
+  for (const b of $('#theme').children) b.setAttribute('aria-checked', b.dataset.v === pref);
+}
+renderTheme(applyTheme());
+$('#theme').addEventListener('click', (e) => {
+  const v = e.target.closest('button')?.dataset.v;
+  if (!v) return;
+  try { localStorage.setItem('tv.theme', v); } catch {}
+  renderTheme(applyTheme());
 });
 
 // ---- Senderauswahl ---------------------------------------------------------
@@ -592,19 +626,23 @@ async function refresh() {
   catch { if (!list) $('#list').innerHTML = '<p class="msg">Programm konnte nicht geladen werden.</p>'; }
 }
 
-// Im Leerlauf vorladen: Details für heute, Vorschaubilder der eigenen Sender
-// für alle Tage, das Tagesprogramm für "Jetzt". Danach geht Wechseln und
-// Antippen ohne Netz.
+// Im Leerlauf vorladen, was die eigenen Sender brauchen (gesamt unter 1 MB):
+// zuerst die kleinen Daten (Details, Tagesprogramme für "Danach" und "Jetzt"),
+// dann die Vorschaubilder aller Tage und von "Jetzt". Danach geht Wechseln
+// und Antippen ohne Netz; nur die großen Bilder kommen erst beim Öffnen.
 function prefetch() {
   if (!list || navigator.connection?.saveData) return;
   const today = localIso();
-  getDetails(list.days.includes(today) ? today : list.days[0]);
+  const ids = myChannels();
   const seen = new Set();
-  for (const d of list.days) for (const id of mine) {
-    const src = list.items[d]?.[id]?.[5];
-    if (src && !seen.has(src)) { seen.add(src); fetch(live(src, 320), { mode: 'cors', priority: 'low' }).catch(() => {}); }
+  const img = (url) => { if (url && !seen.has(url)) { seen.add(url); fetch(url, { mode: 'cors', priority: 'low' }).catch(() => {}); } };
+  for (const d of list.days) for (const id of ids) {
+    if (list.items[d]?.[id]) getDetails(d, id);
+    if (d !== today) getSched(d, id);
   }
-  for (const id of myChannels()) { getSched(today, id); getSchedX(today, id); }
+  for (const id of ids) getSchedX(today, id);
+  for (const d of list.days) for (const id of ids) img(live(list.items[d]?.[id]?.[5], 320));
+  for (const id of ids) getSched(today, id).then((progs) => img(itemNow(today, id, progs)?.th));
 }
 
 // Fortschritt und "noch x Min" laufen mit; in "Jetzt" rückt nach dem Ende
@@ -615,11 +653,28 @@ setInterval(() => {
   else updateProgress();
 }, 20000);
 
+// iOS entscheidet beim Start (oft zu früh), ob oben der Weichzeichner liegt,
+// und prüft neu erst, wenn das Dokument selbst scrollt. Unseres scrollt nie
+// (nur die Liste), deshalb war es erst nach der Zurück-Geste scharf. Also
+// einmal unsichtbar 1 px scrollen: dafür muss das Dokument kurz scrollbar sein.
+function nudgeTopEdge() {
+  const r = document.documentElement;
+  r.style.overflow = 'auto';
+  r.style.height = 'calc(100% + 1px)';
+  scrollTo(0, 1);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    scrollTo(0, 0);
+    r.style.overflow = r.style.height = '';
+  }));
+}
+addEventListener('pageshow', () => requestAnimationFrame(nudgeTopEdge));
+
 refresh().then(() => {
+  requestAnimationFrame(nudgeTopEdge);
   (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 });
 });
 addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && list) { render(); refresh(); }
+  if (document.visibilityState === 'visible' && list) { render(); refresh(); nudgeTopEdge(); }
 });
 if ('serviceWorker' in navigator) {
   const sw = navigator.serviceWorker;

@@ -1,7 +1,7 @@
 {
-  "name": "TV – Was läuft um 20:15?",
+  "name": "TV – Was läuft jetzt und um 20:15?",
   "short_name": "TV",
-  "description": "Was heute um 20:15 im Fernsehen läuft – auf einen Blick.",
+  "description": "Was jetzt und um 20:15 im Fernsehen läuft – auf einen Blick.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

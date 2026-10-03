@@ -1,8 +1,9 @@
 name: Deploy
 
-# Baut die 20:15-Daten aus dem EPG und veröffentlicht alles auf GitHub Pages.
-# Läuft bei jedem Push und einmal täglich: jeden Tag kommt ein neuer Tag dazu,
-# und kurzfristige Änderungen für den Abend sind um 18 Uhr meist bekannt.
+# Baut die Programmdaten aus dem EPG, testet die App im Browser und
+# veröffentlicht alles auf GitHub Pages. Läuft bei jedem Push und einmal
+# täglich: jeden Tag kommt ein neuer Tag dazu, und kurzfristige Änderungen
+# für den Abend sind um 18 Uhr meist bekannt.
 
 on:
   push:
@@ -49,6 +50,22 @@ jobs:
       - run: npm run build
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+      # Browser-Tests gegen den fertigen Build, bevor er ausgeliefert wird.
+      - id: playwright
+        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ steps.playwright.outputs.version }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
 
       - uses: actions/upload-pages-artifact@v5
         with:

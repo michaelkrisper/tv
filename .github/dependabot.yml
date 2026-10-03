@@ -1,0 +1,19 @@
+# Neue Hauptversionen von Actions und Paketen als Pull Request. Unterversionen
+# kommen ohnehin von selbst: Actions laufen auf dem Major-Tag (@v7), npm auf ^.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ['*']
