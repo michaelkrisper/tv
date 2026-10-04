@@ -11,6 +11,8 @@ on:
   schedule:
     # Cron kennt nur UTC: 18:00 MESZ, im Winter 17:00 MEZ.
     - cron: '0 16 * * *'
+    # Nach Mitternacht (01:30 MESZ / 00:30 MEZ), sonst fehlt bis 18 Uhr der dritte Tag.
+    - cron: '30 23 * * *'
   workflow_dispatch:
 
 permissions:

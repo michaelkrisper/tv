@@ -41,7 +41,7 @@ dass der erste Start unter 2 MB bleibt.
 ## Wie es funktioniert
 
 Es gibt keinen Server und keine Datenbank. Eine GitHub Action läuft bei jedem Push
-und täglich um 18 Uhr:
+sowie täglich um 18 Uhr und kurz nach Mitternacht:
 
 1. lädt die XMLTV-Programmdaten für Deutschland und Österreich von
    [epgshare01](https://epgshare01.online/) (je rund 60 MB entpackt),
