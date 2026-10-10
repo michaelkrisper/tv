@@ -15,6 +15,8 @@
 // "auto" folgt dem Betriebssystem, auch wenn es sich dort umstellt.
 function applyTheme(){let p='auto';try{p=localStorage.getItem('tv.theme')||p}catch{}const t=p==='light'||p==='dark'?p:matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t;document.querySelector('meta[name=theme-color]').content=t==='light'?'#f4f5f8':'#101218';return p}
 applyTheme();matchMedia('(prefers-color-scheme: light)').addEventListener('change',applyTheme);
+// Zusätzlicher Abstand oben, pro Gerät einstellbar (iOS-Weichzeichner unter der Statusleiste).
+try{document.documentElement.style.setProperty('--pad',(+localStorage.getItem('tv.top')||0)+'px')}catch{}
 </script>
 <link rel="preload" href="data/list.json" as="fetch" crossorigin>
 <link rel="preconnect" href="https://wsrv.nl" crossorigin>
@@ -22,7 +24,7 @@ applyTheme();matchMedia('(prefers-color-scheme: light)').addEventListener('chang
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-:root{--top:env(safe-area-inset-top)}
+:root{--top:calc(env(safe-area-inset-top) + var(--pad,0px))}
 :root{--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
 [data-theme=light]{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}
 *{box-sizing:border-box;margin:0}
@@ -41,7 +43,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 /* Statusleiste: deckender fixed-Streifen über die volle Breite. Nur dann zeichnet
    iOS 26 dort keinen Weichzeichner, sondern füllt sie mit dieser Farbe
    (WebKit: fixedContainerEdges; mehr als 10 px hoch, mind. 90 % breit). */
-.edge{position:fixed;z-index:3;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);pointer-events:none}
+.edge{position:fixed;z-index:3;top:0;left:0;right:0;height:var(--top);background:var(--bg);pointer-events:none}
 .tabs{position:fixed;z-index:2;left:0;right:0;bottom:0;display:flex;align-items:center;gap:4px;height:calc(64px + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom) 12px;background:color-mix(in srgb,var(--card) 60%,var(--bg))}
 .days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
 .days::-webkit-scrollbar{display:none}
@@ -146,6 +148,9 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
 .seg{display:flex;gap:2px;padding:3px;border-radius:99px;background:var(--card);border:1px solid var(--line)}
 .seg button{flex:1;padding:8px 6px;border-radius:99px;font-size:14px;font-weight:500}
 .seg [aria-checked=true]{background:var(--acc);color:#111;font-weight:600}
+.range{display:flex;align-items:center;gap:12px;padding:0 4px}
+.range input{flex:1;accent-color:var(--acc)}
+.range output{min-width:44px;text-align:right;font-size:14px;color:var(--dim)}
 .reset{color:var(--dim);font-size:14px;text-decoration:underline;padding:8px 4px}
 </style>
 </head>
@@ -164,6 +169,8 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
   <div class="sec">
     <h3>Darstellung</h3>
     <div class="seg" id="theme" role="radiogroup" aria-label="Darstellung"><button role="radio" data-v="auto">Automatisch</button><button role="radio" data-v="light">Hell</button><button role="radio" data-v="dark">Dunkel</button></div>
+    <h3>Abstand oben</h3>
+    <label class="range"><input type="range" id="top" min="0" max="60" step="1" aria-label="Abstand oben"><output id="topv"></output></label>
     <h3>Meine Sender · zum Sortieren ziehen</h3>
     <ul class="chl" id="mine"></ul>
     <h3>Weitere Sender</h3>
@@ -539,6 +546,17 @@ $('#theme').addEventListener('click', (e) => {
   if (!v) return;
   try { localStorage.setItem('tv.theme', v); } catch {}
   renderTheme(applyTheme());
+});
+function renderTop(v) {
+  $('#top').value = v;
+  $('#topv').textContent = `${v} px`;
+}
+renderTop(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pad')) || 0);
+$('#top').addEventListener('input', (e) => {
+  const v = +e.target.value;
+  document.documentElement.style.setProperty('--pad', `${v}px`);
+  try { localStorage.setItem('tv.top', v); } catch {}
+  renderTop(v);
 });
 
 // ---- Senderauswahl ---------------------------------------------------------

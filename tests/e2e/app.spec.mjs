@@ -118,6 +118,17 @@ test.describe('App', () => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await expect(html).toHaveAttribute('data-theme', 'dark');
   });
+
+  test('Abstand oben: verschiebt Inhalt und Streifen, bleibt gespeichert', async ({ page }) => {
+    const top = () => page.locator('.edge').evaluate((el) => el.getBoundingClientRect().height);
+    const base = await top();
+    await page.locator('#gear').click();
+    await page.locator('#top').fill('24');
+    await expect(page.locator('#topv')).toHaveText('24 px');
+    expect(await top()).toBe(base + 24);
+    await page.reload();
+    expect(await top()).toBe(base + 24);
+  });
 });
 
 test.describe('Datenmenge', () => {
