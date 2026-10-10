@@ -119,7 +119,7 @@ test.describe('App', () => {
     await expect(html).toHaveAttribute('data-theme', 'dark');
   });
 
-  test('Abstand oben: verschiebt Inhalt und Streifen, bleibt gespeichert', async ({ page }) => {
+  test('Abstand oben: verschiebt Inhalt, Streifen und Detailseite, bleibt gespeichert', async ({ page }) => {
     const top = () => page.locator('.edge').evaluate((el) => el.getBoundingClientRect().height);
     const base = await top();
     await page.locator('#gear').click();
@@ -128,6 +128,13 @@ test.describe('App', () => {
     expect(await top()).toBe(base + 24);
     await page.reload();
     expect(await top()).toBe(base + 24);
+
+    await page.locator('#list .row[data-id]').first().click();
+    await expect(detail(page)).toHaveAttribute('open', '');
+    const hw = await detail(page)
+      .locator('.hw')
+      .evaluate((el) => el.getBoundingClientRect().top);
+    expect(hw).toBe(base + 24);
   });
 });
 
