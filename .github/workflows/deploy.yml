@@ -3,11 +3,13 @@ name: Deploy
 # Baut die Programmdaten aus dem EPG, testet die App im Browser und
 # veröffentlicht alles auf GitHub Pages. Läuft bei jedem Push und einmal
 # täglich: jeden Tag kommt ein neuer Tag dazu, und kurzfristige Änderungen
-# für den Abend sind um 18 Uhr meist bekannt.
+# für den Abend sind um 18 Uhr meist bekannt. Pull Requests werden nur
+# gebaut und getestet, nicht veröffentlicht.
 
 on:
   push:
     branches: [main]
+  pull_request:
   schedule:
     # Cron kennt nur UTC: 18:00 MESZ, im Winter 17:00 MEZ.
     - cron: '0 16 * * *'
@@ -22,14 +24,14 @@ permissions:
   actions: write
 
 concurrency:
-  group: pages
+  group: ${{ github.event_name == 'pull_request' && github.ref || 'pages' }}
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: ${{ github.event_name != 'pull_request' && 'github-pages' || '' }}
       url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
@@ -70,12 +72,15 @@ jobs:
           retention-days: 7
 
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
           path: dist
       - id: pages
+        if: github.event_name != 'pull_request'
         uses: actions/deploy-pages@v5
 
       - name: Nachsehen
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           live="${{ steps.pages.outputs.page_url }}"
