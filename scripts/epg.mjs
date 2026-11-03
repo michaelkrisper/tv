@@ -74,6 +74,13 @@ export function slug(name) {
     .replace(/[^a-z0-9+]/g, '');
 }
 
+// The AT feed is all caps: "OBERÖSTERREICH TV" -> "Oberösterreich TV".
+// Short words and words with digits are usually abbreviations and stay.
+export function prettyName(n) {
+  if (n !== n.toUpperCase() || !/[A-ZÄÖÜ]{4}/.test(n)) return n;
+  return n.replace(/[A-ZÄÖÜ]{4,}/g, (w) => w[0] + w.slice(1).toLowerCase()).replace(/\bSKY\b/, 'Sky');
+}
+
 export function parseChannels(xml) {
   const out = new Map();
   for (const m of xml.matchAll(/<channel id="([^"]+)">[\s\S]*?<display-name[^>]*>([^<]+)</g)) {

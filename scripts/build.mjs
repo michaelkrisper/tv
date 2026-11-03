@@ -17,6 +17,7 @@ import {
   isReal,
   parseBody,
   parseChannels,
+  prettyName,
   programmes,
   slug,
   zonedToEpoch,
@@ -86,13 +87,6 @@ const NAMES = {
   nitro: 'RTL NITRO',
   swrsr: 'SWR',
 };
-
-// The AT feed is all caps: "OBERÖSTERREICH TV" -> "Oberösterreich TV".
-// Short words and words with digits are usually abbreviations and stay.
-function prettyName(n) {
-  if (n !== n.toUpperCase() || !/[A-ZÄÖÜ]{4}/.test(n)) return n;
-  return n.replace(/[A-ZÄÖÜ]{4,}/g, (w) => w[0] + w.slice(1).toLowerCase()).replace(/\bSKY\b/, 'Sky');
-}
 
 const HIDDEN = /beate|playboy|lust pur|adult|myteamtv|fussball\.tv|^sky sport (bundesliga|austria)? ?\d/i;
 
