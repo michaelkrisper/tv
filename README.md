@@ -1,7 +1,9 @@
 # TV
 
+[![CI](https://github.com/michaelkrisper/tv/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelkrisper/tv/actions/workflows/ci.yml)
 [![Deploy](https://github.com/michaelkrisper/tv/actions/workflows/deploy.yml/badge.svg)](https://github.com/michaelkrisper/tv/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js 26](https://img.shields.io/badge/node-26-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![Live demo](https://img.shields.io/badge/demo-michaelkrisper.github.io%2Ftv-2ea44f)](https://michaelkrisper.github.io/tv/)
 
 What is on right now, and what is on at 20:15 (prime time)? All TV channels of
@@ -81,7 +83,7 @@ loading.
 
 ## Development
 
-Requirement: Node.js 24.
+Requirement: Node.js 26 (see [`.nvmrc`](.nvmrc)).
 
 ```sh
 npm ci
@@ -95,18 +97,23 @@ npm run test:e2e                  # browser tests against dist/
 ### Tests
 
 - **Unit** (`tests/*.test.mjs`, `node:test`): XMLTV parsing, time zones and
-  daylight saving time, channel names, merging the feeds
+  daylight saving time, channel names and their capitalisation, merging the
+  feeds
 - **Browser** (`tests/e2e/`, Playwright, Chromium with a phone viewport): days
   and swiping, detail page with "Danach", back via button and gesture, theme,
   iOS status bar strip, no JavaScript errors, transfer size under 2 MB
 
 ### Deployment
 
-[`deploy.yml`](.github/workflows/deploy.yml) runs as a single job: lint and
-unit tests, build, browser tests, deployment to GitHub Pages and a check of
-the live site. If any step fails, the previous version stays online. Pull
-requests run the same checks without deploying. [Dependabot](.github/dependabot.yml)
-proposes new major versions of actions and npm packages weekly.
+[`ci.yml`](.github/workflows/ci.yml) runs lint (Biome, including the format
+check) and unit tests on every push and pull request to `main`.
+[`deploy.yml`](.github/workflows/deploy.yml) calls the same CI workflow first
+and only then builds, runs the browser tests, deploys to GitHub Pages and
+checks the live site. If any step fails, the previous version stays online.
+Pull requests run the same checks without deploying.
+[Dependabot](.github/dependabot.yml) proposes updates for actions and npm
+packages weekly (minor and patch updates grouped); its pull requests are
+merged automatically once all checks pass.
 
 ## Project structure
 

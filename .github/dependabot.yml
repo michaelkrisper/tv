@@ -1,5 +1,5 @@
-# New major versions of actions and packages as pull requests. Minor versions
-# arrive anyway: actions use the major tag (@v7), npm uses ^.
+# Weekly updates for actions and npm packages. Minor and patch updates are
+# grouped into one pull request per ecosystem; major updates arrive one by one.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -7,13 +7,15 @@ updates:
     schedule:
       interval: weekly
     groups:
-      actions:
+      actions-minor-patch:
         patterns: ['*']
+        update-types: [minor, patch]
 
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     groups:
-      npm:
+      npm-minor-patch:
         patterns: ['*']
+        update-types: [minor, patch]
