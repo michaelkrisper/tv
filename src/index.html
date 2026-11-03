@@ -11,11 +11,11 @@
 <meta name="description" content="Was jetzt und heute um 20:15 im Fernsehen läuft – auf einen Blick.">
 <meta name="theme-color" content="#101218">
 <script>
-// Hell/Dunkel vor dem ersten Zeichnen setzen, sonst blitzt das falsche auf.
-// "auto" folgt dem Betriebssystem, auch wenn es sich dort umstellt.
+// Set light/dark before the first paint, otherwise the wrong one flashes.
+// "auto" follows the operating system, including later changes.
 function applyTheme(){let p='auto';try{p=localStorage.getItem('tv.theme')||p}catch{}const t=p==='light'||p==='dark'?p:matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t;document.querySelector('meta[name=theme-color]').content=t==='light'?'#f4f5f8':'#101218';return p}
 applyTheme();matchMedia('(prefers-color-scheme: light)').addEventListener('change',applyTheme);
-// Zusätzlicher Abstand oben, pro Gerät einstellbar (iOS-Weichzeichner unter der Statusleiste).
+// Extra top inset, adjustable per device (iOS blur under the status bar).
 try{document.documentElement.style.setProperty('--pad',(+localStorage.getItem('tv.top')||0)+'px')}catch{}
 </script>
 <link rel="preload" href="data/list.json" as="fetch" crossorigin>
@@ -28,8 +28,8 @@ try{document.documentElement.style.setProperty('--pad',(+localStorage.getItem('t
 :root{--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
 [data-theme=light]{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}
 *{box-sizing:border-box;margin:0}
-/* Das Dokument selbst scrollt: nur dann klappt Safari seine Leisten ein und
-   prüft den Rand oben neu (sonst bleibt der Weichzeichner liegen). */
+/* The document itself scrolls: only then does Safari collapse its bars and
+   re-check the top edge (otherwise the blur stays). */
 html:has(dialog[open]){overflow:hidden}
 html{-webkit-text-size-adjust:100%;touch-action:pan-x pan-y;overscroll-behavior:none;scrollbar-width:none}
 html::-webkit-scrollbar{display:none}
@@ -38,11 +38,11 @@ body{background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system
 img{-webkit-user-drag:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 :focus:not(:focus-visible),dialog:focus{outline:none}
-/* Navigation unten (Material 3) auf allen Plattformen: volle Breite, bündig
-   unten, flach ohne Milchglas; Auswahl als Pille. */
-/* Statusleiste: deckender fixed-Streifen über die volle Breite. Nur dann zeichnet
-   iOS 26 dort keinen Weichzeichner, sondern füllt sie mit dieser Farbe
-   (WebKit: fixedContainerEdges; mehr als 10 px hoch, mind. 90 % breit). */
+/* Bottom navigation (Material 3) on all platforms: full width, flush with
+   the bottom, flat without frosted glass; selection as a pill. */
+/* Status bar: opaque fixed strip across the full width. Only then does iOS 26
+   skip the blur there and fill it with this colour instead
+   (WebKit: fixedContainerEdges; taller than 10 px, at least 90 % wide). */
 .edge{position:fixed;z-index:3;top:0;left:0;right:0;height:var(--top);background:var(--bg);pointer-events:none}
 .tabs{position:fixed;z-index:2;left:0;right:0;bottom:0;display:flex;align-items:center;gap:4px;height:calc(64px + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom) 12px;background:color-mix(in srgb,var(--card) 60%,var(--bg))}
 .days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
@@ -59,17 +59,17 @@ main{display:block;min-height:100vh;touch-action:pan-y;padding:calc(var(--top) +
 @media (hover:hover){.row:hover{background:var(--card)}}
 .tw{position:relative;border-radius:8px}
 .th{width:96px;height:auto;aspect-ratio:16/9;border-radius:8px;background:var(--card);object-fit:cover;display:block}
-/* Bilder weich einblenden statt aufploppen */
+/* Fade images in instead of popping */
 img.th,img.hero{opacity:0;transition:opacity .2s}
 img.ok{opacity:1}
 .badge{position:absolute;left:0;top:0;max-width:100%;padding:2px 5px;border-radius:8px 0 6px 0;background:#000b;color:#fff;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* Logos transparent auf dem Bild: Schatten und eine abgedunkelte Ecke tragen
-   weiße und farbige Logos; fast schwarze (k) bekommen einen hellen Schein. */
+/* Logos transparent on the image: a shadow and a darkened corner carry white
+   and coloured logos; near-black ones (k) get a light glow. */
 .lg{position:absolute;z-index:1;left:4px;top:4px;display:flex;align-items:center;height:16px}
 .lg img{height:100%;width:auto;max-width:58px;object-fit:contain;object-position:left center;display:block;filter:drop-shadow(0 0 1px #000a) drop-shadow(0 1px 3px #000c)}
 .lg.k img{filter:drop-shadow(0 0 1px #fffc) drop-shadow(0 0 4px #fffa)}
 .tw.sc::after{content:"";position:absolute;inset:0;border-radius:8px;background:radial-gradient(110% 80% at 0 0,#000a,transparent 60%);pointer-events:none}
-/* Fortschritt über die ganze Zeile, unten im Rand der Zeile. */
+/* Progress across the whole row, in the row's bottom edge. */
 .pg{position:absolute;left:4px;right:4px;bottom:0;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
 .pg i{display:block;height:100%;background:#ff4d4d}
 .pg[hidden]{display:none}
@@ -94,12 +94,12 @@ dialog[open]::backdrop{animation:fade .3s}
 @keyframes fade{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){dialog[open],dialog[open]::backdrop,.days .now::before{animation:none}img.th,img.hero,.row{transition:none}}
 @media (min-width:800px){dialog{height:auto;max-height:92vh;margin:4vh auto;border-radius:16px}}
-/* iOS 26, Home-Bildschirm: das Fenster ist um die Statusleiste zu kurz
-   (WebKit-Bug 301108), bottom:0 und 100% enden zu früh. 100vh stimmt. */
+/* iOS 26, home screen: the window is short by the status bar height
+   (WebKit bug 301108), so bottom:0 and 100% end too early. 100vh is correct. */
 @media (display-mode:standalone) and (max-width:799px){.tabs{bottom:auto;top:calc(100vh - 64px - env(safe-area-inset-bottom))}dialog{height:100vh;max-height:100vh}}
 .bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:calc(var(--top) + 8px) 8px 8px;background:var(--bg)}
 .bar h2{font-size:18px;flex:1}
-/* Detail im Streaming-Stil: Bild läuft in den Hintergrund aus, Titel steht im Bild. */
+/* Streaming-style detail: the image fades into the background, title over the image. */
 .hw{position:relative;background:var(--card) center/cover}
 .hero{width:100%;aspect-ratio:16/10;object-fit:cover;display:block}
 .hw::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,#0007 0,transparent 20%,transparent 38%,var(--bg) 98%);pointer-events:none}
@@ -132,9 +132,9 @@ dialog[open]::backdrop{animation:fade .3s}
 .chev{width:8px;height:8px;border:solid var(--dim);border-width:2px 2px 0 0;transform:rotate(45deg);margin-right:6px}
 .next b{font-variant-numeric:tabular-nums;color:var(--dim);font-weight:600}
 .nt{flex:none;width:56px;aspect-ratio:16/9;border-radius:4px;background:var(--card);object-fit:cover}
-/* Deckender Streifen oben wie .edge (das im Dialog verdeckt ist): Bild beginnt darunter. */
+/* Opaque top strip like .edge (which the dialog covers): the image starts below it. */
 #detail::before{content:"";position:sticky;z-index:3;top:0;display:block;height:var(--top);background:var(--bg)}
-/* Bleibt beim Scrollen stehen; negativer Rand unten, damit es keinen Platz belegt. */
+/* Stays in place while scrolling; negative bottom margin so it takes no space. */
 .back{position:sticky;z-index:2;top:calc(var(--top) + 8px);margin:8px 0 -42px 8px;background:#000a;color:#fff}
 .sec{padding:4px 12px 12px}
 .sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:14px 4px 6px}
@@ -185,14 +185,14 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
 <script>
 'use strict';
 const DEFAULT = ['orf1','orf2','tlc','tele5','prosieben','rtlzwei','puls4','zdfneo','n24doku','arte','servustv','superrtl','atvii','sixx','kabeleins','atv','sat1','3sat','daserste','ntv','rtl','zdf','orfiii','prosiebenmaxx'];
-// Neuer Schlüssel: alte Auswahl wird einmalig verworfen, damit die neue Standardliste gilt.
+// New key: the old selection is discarded once so the new default list applies.
 const KEY = 'tv.channels.2';
 const NOW = 'jetzt';
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
-// Bilder kommen live: fairu skaliert selbst, alles andere (TV Spielfilm
-// liefert bis zu 6 MB große Originale) über den Resize-Dienst wsrv.nl.
+// Images load live: fairu resizes itself, everything else (TV Spielfilm
+// serves originals up to 6 MB) goes through the wsrv.nl resize service.
 function live(src, w) {
   if (!src) return '';
   if (src.startsWith('files.fairu.app')) return `https://${src}?width=${w}&format=webp&quality=70`;
@@ -201,10 +201,10 @@ function live(src, w) {
 }
 
 let list = null;
-let view = null; // NOW oder ein Datum (20:15-Ansicht)
+let view = null; // NOW or a date (20:15 view)
 let names = new Map();
 let logos = new Map();
-let shown = new Map(); // id -> Sendung der aktuellen Ansicht, für das Antippen
+let shown = new Map(); // id -> programme of the current view, for taps
 const details = new Map();
 const scheds = new Map();
 const schedX = new Map();
@@ -229,8 +229,8 @@ function dayLabel(iso) {
   return new Date(`${iso}T12:00`).toLocaleDateString('de-AT', { weekday: 'short', day: 'numeric', month: 'numeric' });
 }
 
-// Genre-Gruppen: Reihenfolge zählt ("Krimikomödie" ist Krimi, "Doku-Soap" Show).
-// [Muster, Farbton, Sättigung, SVG-Pfad]
+// Genre groups: order matters ("Krimikomödie" is Krimi, "Doku-Soap" is Show).
+// [pattern, hue, saturation, SVG path]
 const GENRES = [
   [/kinder|zeichentrick|animation|anime|trick|jugend|familien|märchen|cartoon/, 85, '60%', '<path d="M12 3a5 5 0 0 1 5 5c0 3.5-3 6-5 6s-5-2.5-5-6a5 5 0 0 1 5-5zM12 14c0 2.5-2 3.5-1 7"/>'],
   [/sport|fußball|fussball|bundesliga|tennis|snooker|rugby|surf|motorrad|formel|biathlon|handball|boxen/, 135, '50%', '<circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 4.5h-5L8 10z"/>'],
@@ -252,14 +252,14 @@ function genreChip(genre) {
   return `<span class="g" style="--h:${hit[1]};--s:${hit[2]}"><svg viewBox="0 0 24 24">${hit[3]}</svg><span>${esc(genre)}</span></span>`;
 }
 
-// Senderlogo transparent auf dem Bild; ohne Logo der Name als Textbadge.
+// Channel logo transparent on the image; without a logo, the name as a text badge.
 function channelMark(id) {
   const name = esc(names.get(id));
   const l = logos.get(id);
   return l ? `<span class="lg ${l}"><img src="img/logo-${id}.webp" alt="${name}"></span>` : `<span class="badge">${name}</span>`;
 }
 
-// ---- Sendungen: ein Format für beide Ansichten --------------------------------
+// ---- Programmes: one format for both views ------------------------------------
 // { id, title, genre, year, rating, s, e (ms), start, stop (HH:MM), th, hero, x(), next }
 
 function item2015(date, id) {
@@ -289,7 +289,7 @@ const getDetails = (date, id) => getJson(details, `data/${date}/${id}.d.json`, {
 const getSched = (date, id) => getJson(scheds, `data/${date}/${id}.json`, []);
 const getSchedX = (date, id) => getJson(schedX, `data/${date}/${id}.x.json`, []);
 
-// Programm eines Tages: Zeiten sind Minuten ab 0 Uhr dieses Tages.
+// Schedule of one day: times are minutes from 00:00 of that day.
 function schedItem(date, id, progs, j) {
   const p = progs[j];
   const base = at(date, '00:00');
@@ -299,7 +299,7 @@ function schedItem(date, id, progs, j) {
     id, title: p[2], genre: p[3], year: p[5], rating: p[6], s, e, start: hm(s), stop: hm(e),
     th: live(p[4], 320), hero: live(p[4], 960), sm: live(p[4], 160), live: true,
     x: () => getSchedX(date, id).then((x) => x[j] || {}),
-    // erst beim Öffnen gebaut: jede Sendung hat ihr eigenes "Danach"
+    // built only on open: every programme has its own "Danach"
     next: () => progs.slice(j + 1, j + 4).map((q, k) => schedItem(date, id, progs, j + 1 + k)),
   };
 }
@@ -310,7 +310,7 @@ function itemNow(date, id, progs, t = Date.now()) {
   return i < 0 ? null : schedItem(date, id, progs, i);
 }
 
-// ---- Liste ---------------------------------------------------------------------
+// ---- List ----------------------------------------------------------------------
 const mins = (a, b) => Math.round((b - a) / 6e4);
 
 function rightText(it) {
@@ -385,7 +385,7 @@ function renderDays() {
 
 function render() { renderDays(); return renderList(); }
 
-// Ansicht wechseln, mit kurzer Schiebe-Animation in Wischrichtung.
+// Switch view with a short slide animation in swipe direction.
 const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 async function goView(v) {
   const vs = views();
@@ -401,7 +401,7 @@ async function goView(v) {
   el.animate([{ transform: `translateX(${dir * 40}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 170, easing: 'ease-out' });
 }
 
-// Waagrecht wischen. Nicht vom Rand aus: das ist die Zurück-Geste des Systems.
+// Horizontal swipe. Not from the edge: that is the system back gesture.
 function onSwipe(el, fn) {
   let touch = null;
   el.addEventListener('touchstart', (e) => {
@@ -418,7 +418,7 @@ function onSwipe(el, fn) {
   }, { passive: true });
 }
 
-// Zwischen den Ansichten wischen.
+// Swipe between views.
 onSwipe($('#list'), (dir) => {
   const vs = views();
   const next = vs[vs.indexOf(view) + dir];
@@ -440,7 +440,7 @@ function applyList(l) {
   render();
 }
 
-// ---- Detailansicht ---------------------------------------------------------
+// ---- Detail view -----------------------------------------------------------
 const dlg = $('#detail');
 const backBtn = '<button class="icon back" data-close aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>';
 
@@ -456,12 +456,12 @@ function meta(it) {
 
 const COUNTRY = { D: 'Deutschland', A: 'Österreich', CH: 'Schweiz', GB: 'Großbritannien', F: 'Frankreich', I: 'Italien', E: 'Spanien' };
 
-// Verlauf innerhalb der Detailansicht ("Danach" -> Sendung -> …), damit
-// Zurück schrittweise zurückgeht und erst am Anfang schließt.
+// History within the detail view ("Danach" -> programme -> ...), so that back
+// steps back one at a time and only closes at the start.
 const trail = [];
 let current = null;
 
-// dir: 0 = aus der Liste, 1 = weiter zu "Danach", -1 = zurück
+// dir: 0 = from the list, 1 = forward to "Danach", -1 = back
 async function openDetail(it, dir = 0) {
   if (!it) return;
   const id = it.id;
@@ -469,7 +469,7 @@ async function openDetail(it, dir = 0) {
   const cors = it.live ? ' crossorigin="anonymous"' : '';
   const hero = it.hero ? `<img class="hero" src="${it.hero}"${cors} alt="">` : '';
   const bg = it.th ? ` style="background-image:url('${it.th}')"` : '';
-  // Name immer auch als Text: manche Logos (z. B. ARD alpha) erkennt man nicht.
+  // Always show the name as text too: some logos (e.g. ARD alpha) are unrecognisable.
   const mark = `<div class="chn">${logos.has(id) ? channelMark(id) : ''}<span class="ch">${esc(names.get(id))}</span></div>`;
   dlg.innerHTML = `${backBtn}<div class="hw${hero ? '' : ' no'}"${bg}>${hero}<div class="ht">${mark}<h2>${esc(it.title)}</h2><div class="m">${meta(it)}</div>${progressBar(it)}</div></div><div class="dt"><div id="dx"></div></div>`;
   settleImages(dlg);
@@ -497,8 +497,8 @@ async function openDetail(it, dir = 0) {
   dx.innerHTML = body;
 }
 
-// Zurück schiebt die Ansicht nach rechts hinaus. Nicht bei Safaris Wischgeste
-// vom linken Rand: die animiert schon selbst, sonst liefe es doppelt.
+// Back slides the view out to the right. Not for Safari's swipe gesture from
+// the left edge: that already animates itself, otherwise it would run twice.
 let edgeSwipe = 0;
 addEventListener('touchstart', (e) => { if (e.touches[0].clientX < 30) edgeSwipe = Date.now(); }, { passive: true });
 const EASE_OUT = { duration: 250, easing: 'cubic-bezier(.4,0,.8,.2)' };
@@ -521,7 +521,7 @@ dlg.addEventListener('click', (e) => {
   openDetail(current.nextList[li.dataset.k], 1);
 });
 dlg.addEventListener('close', () => { trail.length = 0; });
-// In der Detailseite nach rechts wischen: zurück.
+// Swipe right on the detail page: back.
 onSwipe(dlg, (dir) => { if (dir < 0) history.back(); });
 for (const d of document.querySelectorAll('dialog')) {
   d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) history.back(); });
@@ -538,7 +538,7 @@ $('#days').addEventListener('click', (e) => {
   if (b) goView(b.dataset.day);
 });
 
-// ---- Darstellung -------------------------------------------------------------
+// ---- Theme -------------------------------------------------------------------
 function renderTheme(pref) {
   for (const b of $('#theme').children) b.setAttribute('aria-checked', b.dataset.v === pref);
 }
@@ -561,7 +561,7 @@ $('#top').addEventListener('input', (e) => {
   renderTop(v);
 });
 
-// ---- Senderauswahl ---------------------------------------------------------
+// ---- Channel selection -----------------------------------------------------
 const set = $('#settings');
 const handleSvg = '<svg viewBox="0 0 24 24"><path d="M5 9h14M5 15h14"/></svg>';
 const smallMark = (id) => logos.has(id) ? `<span class="lg ${logos.get(id)}"><img src="img/logo-${id}.webp" alt="" loading="lazy"></span>` : '<span class="lg no"></span>';
@@ -606,7 +606,7 @@ $('#reset').addEventListener('click', () => {
   renderSettings();
 });
 
-// Ziehen am Griff: das Element folgt dem Finger, Nachbarn rücken nach.
+// Drag by the handle: the item follows the finger, neighbours shift along.
 $('#mine').addEventListener('pointerdown', (e) => {
   const h = e.target.closest('.handle');
   if (!h) return;
@@ -644,19 +644,19 @@ $('#mine').addEventListener('pointerdown', (e) => {
   h.addEventListener('pointercancel', up, { once: true });
 });
 
-// Wie eine App: kein Pinch-Zoom. iOS ignoriert user-scalable=no im Browser.
+// Like an app: no pinch zoom. iOS ignores user-scalable=no in the browser.
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault());
 
-// ---- Start -----------------------------------------------------------------
+// ---- Startup ---------------------------------------------------------------
 async function refresh() {
   try { applyList(await getList()); }
   catch { if (!list) $('#list').innerHTML = '<p class="msg">Programm konnte nicht geladen werden.</p>'; }
 }
 
-// Im Leerlauf vorladen, was die eigenen Sender brauchen (gesamt unter 2 MB):
-// zuerst die kleinen Daten (Details, Tagesprogramme für "Danach" und "Jetzt"),
-// dann die Vorschaubilder aller Tage und von "Jetzt". Danach geht Wechseln
-// und Antippen ohne Netz; nur die großen Bilder kommen erst beim Öffnen.
+// Prefetch what the selected channels need while idle (under 2 MB in total):
+// first the small data (details, schedules for "Danach" and "Jetzt"), then the
+// thumbnails for all days and for "Jetzt". After that, switching and tapping
+// work offline; only the large images load on open.
 function prefetch() {
   if (!list || navigator.connection?.saveData) return;
   const today = localIso();
@@ -672,8 +672,8 @@ function prefetch() {
   for (const id of ids) getSched(today, id).then((progs) => img(itemNow(today, id, progs)?.th));
 }
 
-// Fortschritt und "noch x Min" laufen mit; in "Jetzt" rückt nach dem Ende
-// einer Sendung die nächste nach.
+// Progress and "noch x Min" keep updating; in "Jetzt" the next programme moves
+// up when one ends.
 setInterval(() => {
   if (document.visibilityState !== 'visible' || !list) return;
   if (view === NOW && [...shown.values()].some((it) => it && it.e <= Date.now())) renderList();
@@ -690,9 +690,9 @@ if ('serviceWorker' in navigator) {
   const sw = navigator.serviceWorker;
   const reg = sw.register('sw.js');
   sw.addEventListener('message', (e) => { if (e.data === 'list') refresh(); });
-  // Installierte Apps bleiben im Speicher und laden beim Wiederöffnen nicht
-  // neu – also selbst nach einer neuen Version fragen und dann einmal neu laden.
-  // Nicht beim allerersten Besuch: da übernimmt der Worker nur erstmals.
+  // Installed apps stay in memory and do not reload when reopened, so check for
+  // a new version ourselves and reload once. Not on the very first visit: the
+  // worker is only taking control for the first time then.
   const hadController = !!sw.controller;
   sw.addEventListener('controllerchange', () => { if (hadController) location.reload(); });
   addEventListener('visibilitychange', () => {

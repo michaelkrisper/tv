@@ -1,8 +1,8 @@
-// Holt die XMLTV-Feeds, schneidet für jeden Sender die 20:15-Sendung und das
-// Tagesprogramm für "Jetzt" heraus, holt die Senderlogos und schreibt nach dist/.
+// Fetches the XMLTV feeds, extracts the 20:15 programme and the daily schedule
+// for "Jetzt" for every channel, fetches the channel logos and writes dist/.
 //
-// Vorschaubilder verarbeitet der Build nicht: die App lädt sie live über die
-// Resize-Dienste (fairu selbst, sonst wsrv.nl).
+// The build does not process thumbnails: the app loads them live through the
+// resize services (fairu itself, otherwise wsrv.nl).
 
 import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
@@ -29,17 +29,17 @@ const TZ = 'Europe/Vienna';
 const HOUR = 20;
 const MINUTE = 15;
 const DAYS = 3;
-// Tagesprogramm für alle Tage: "Jetzt" braucht heute und morgen (nach
-// Mitternacht, bevor der nächste Build läuft), 20:15 das "Danach".
+// Daily schedule for all days: "Jetzt" needs today and tomorrow (after
+// midnight, before the next build runs), 20:15 needs it for "Danach".
 const NOW_SPAN = 30 * 3600_000;
 
-// Reihenfolge = Vorrang: der erste Feed liefert die Sendung, weitere ergänzen.
+// Order = priority: the first feed provides the programme, later ones fill gaps.
 const FEEDS = [
   { name: 'de', url: 'https://epgshare01.online/epgshare01/epg_ripper_DE1.xml.gz' },
   { name: 'at', shouty: true, url: 'https://epgshare01.online/epgshare01/epg_ripper_AT1.xml.gz' },
 ];
 
-// Gleiche Sender, anders geschrieben. Schlüssel und Wert sind slug()s.
+// Same channels, spelled differently. Keys and values are slug()s.
 const ALIAS = {
   dasersteard: 'daserste',
   orf3: 'orfiii',
@@ -87,8 +87,8 @@ const NAMES = {
   swrsr: 'SWR',
 };
 
-// Der AT-Feed schreibt alles groß: "OBERÖSTERREICH TV" -> "Oberösterreich TV".
-// Kurze Wörter und Wörter mit Ziffern sind meist Kürzel und bleiben.
+// The AT feed is all caps: "OBERÖSTERREICH TV" -> "Oberösterreich TV".
+// Short words and words with digits are usually abbreviations and stay.
 function prettyName(n) {
   if (n !== n.toUpperCase() || !/[A-ZÄÖÜ]{4}/.test(n)) return n;
   return n.replace(/[A-ZÄÖÜ]{4,}/g, (w) => w[0] + w.slice(1).toLowerCase()).replace(/\bSKY\b/, 'Sky');
@@ -119,20 +119,20 @@ function channelEntry(byChannel, id, name) {
   return byChannel.get(id);
 }
 
-// channelId -> { days: date -> 20:15-Programm, sched: date -> Programme }
+// channelId -> { days: date -> 20:15 programme, sched: date -> programmes }
 function collect(xml, days, shouty) {
   const names = parseChannels(xml);
   const byChannel = new Map();
   for (const p of programmes(xml)) {
     const day = days.find((d) => p.start <= d.at && d.at < p.stop);
-    // Tagesprogramm für "Jetzt": alles, was von 0 Uhr bis 6 Uhr früh am
-    // Folgetag läuft, damit auch nach Mitternacht die Datei des Tages reicht.
+    // Daily schedule for "Jetzt": everything from 00:00 until 06:00 the next
+    // morning, so the day's file is still enough after midnight.
     const inSched = days.filter((d) => p.stop > d.from && p.start < d.from + NOW_SPAN);
     if (!day && !inSched.length) continue;
     const name = names.get(p.channel);
     if (!name || HIDDEN.test(name)) continue;
     const info = parseBody(p.body);
-    // Manche Feeds führen den Episodentitel als Kategorie.
+    // Some feeds list the episode title as a category.
     info.genres = info.genres.filter((g) => !info.title.includes(g) && g !== info.sub);
     if (!isReal(info)) continue;
     const s = slug(name);
@@ -162,14 +162,14 @@ function merge(feeds) {
         const mine = have.days.get(date);
         have.days.set(date, mine ? enrich(mine, p) : p);
       }
-      // Tagesprogramme nicht mischen: nur übernehmen, wo der erste Feed keins hat.
+      // Do not mix schedules: only take one where the first feed has none.
       for (const [date, list] of ch.sched) if (!have.sched.has(date)) have.sched.set(date, list);
     }
   }
   return out;
 }
 
-// ---- Hilfen --------------------------------------------------------------
+// ---- Helpers -------------------------------------------------------------
 
 const exists = (f) =>
   stat(f).then(
@@ -185,9 +185,9 @@ async function pool(items, n, fn) {
   await Promise.all(Array.from({ length: n }, worker));
 }
 
-// ---- Senderlogos ----------------------------------------------------------
+// ---- Channel logos -------------------------------------------------------
 
-// Offene Logo-Sammlung; Dateien heißen z. B. countries/austria/orf2-at.png.
+// Open logo collection; files are named e.g. countries/austria/orf2-at.png.
 const LOGO_TREE = 'https://api.github.com/repos/tv-logo/tv-logos/git/trees/main?recursive=1';
 const LOGO_RAW = 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/';
 const LOGO_ALIAS = { orfiii: 'orf3', 'orfsport+': 'orfsportplus', atvii: 'atv2', nitro: 'rtlnitro' };
@@ -195,7 +195,7 @@ const LOGO_ALIAS = { orfiii: 'orf3', 'orfsport+': 'orfsportplus', atvii: 'atv2',
 async function logoIndex() {
   const headers = process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {};
   const res = await fetch(LOGO_TREE, { headers, signal: AbortSignal.timeout(60_000) });
-  if (!res.ok) throw new Error(`Logo-Verzeichnis: ${res.status}`);
+  if (!res.ok) throw new Error(`Logo directory: ${res.status}`);
   const index = new Map();
   for (const { path } of (await res.json()).tree) {
     const m = /^countries\/(?:austria|germany|switzerland)\/(hd\/)?(.+?)(?:-hd)?-(?:at|de|ch)\.png$/.exec(
@@ -203,16 +203,16 @@ async function logoIndex() {
     );
     if (!m) continue;
     const key = m[2].replace(/-/g, '');
-    // Österreich zuerst (Baumreihenfolge), und ohne "HD" vor mit.
+    // Austria first (tree order), and without "HD" before with.
     const have = index.get(key);
     if (!have || (have.hd && !m[1])) index.set(key, { path, hd: !!m[1] });
   }
   return index;
 }
 
-// Logos stehen transparent auf dem Vorschaubild, mit dunklem Schatten. Das
-// trägt weiße und farbige Logos; nur überwiegend fast schwarze brauchen
-// stattdessen einen hellen Schein ('k').
+// Logos sit transparently on the thumbnail with a dark shadow. That works for
+// white and coloured logos; only mostly near-black ones need a light glow
+// instead ('k').
 async function logoTone(file) {
   const { data } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   let black = 0;
@@ -232,7 +232,7 @@ async function logos(channels) {
   try {
     index = await logoIndex();
   } catch (e) {
-    console.warn(`Logos übersprungen: ${e.message}`);
+    console.warn(`Logos skipped: ${e.message}`);
     return;
   }
   await mkdir(join(CACHE, 'logo'), { recursive: true });
@@ -262,10 +262,10 @@ async function logos(channels) {
       console.warn(`Logo ${id}: ${e.message}`);
     }
   });
-  console.info(`Logos: ${found} von ${channels.size} Sendern`);
+  console.info(`Logos: ${found} of ${channels.size} channels`);
 }
 
-// ---- Ausgabe --------------------------------------------------------------
+// ---- Output --------------------------------------------------------------
 
 const detail = (p) => ({
   sub: p.sub || undefined,
@@ -277,10 +277,10 @@ const detail = (p) => ({
   ep: p.episode || undefined,
 });
 
-// Pro Sender und Tag das ganze Programm, Zeiten in Minuten ab 0 Uhr.
-// Bilder als Quell-URL, die App lädt sie live und verkleinert. Die Details
-// liegen daneben in <id>.x.json (gleiche Reihenfolge) und kommen erst beim
-// Antippen – die Liste wird bei jedem Öffnen von "Jetzt" gelesen.
+// The full schedule per channel and day, times in minutes from 00:00.
+// Images as source URLs; the app loads and downsizes them live. The details
+// sit next to it in <id>.x.json (same order) and load only on tap, because
+// the list is read every time "Jetzt" opens.
 async function writeSchedules(channels, ids, days, thisYear) {
   for (const d of days) {
     await mkdir(join(DIST, 'data', d.date), { recursive: true });
@@ -325,10 +325,10 @@ async function write(channels, days) {
     for (const id of ids) {
       const p = channels.get(id).days.get(date);
       if (!p) continue;
-      // Bei aktuellen Shows ist das Jahr nur Rauschen; bei Filmen (mit
-      // Besetzung) bleibt es, auch wenn es das laufende ist.
+      // For current shows the year is just noise; for films (with a cast)
+      // it stays, even if it is the current year.
       const year = p.year === thisYear && !p.actors.length ? null : p.year;
-      // Kurze Schlüssel: die Liste wird bei jedem Start gelesen.
+      // Short keys: the list is read on every start.
       items[id] = [
         p.title,
         hhmm(p.start, TZ),
@@ -338,7 +338,7 @@ async function write(channels, days) {
         p.img.replace(/^https:\/\//, ''),
         p.rating,
       ];
-      // Details je Sender: die App lädt sie erst beim Antippen.
+      // Details per channel: the app loads them only on tap.
       await writeFile(join(DIST, 'data', date, `${id}.d.json`), JSON.stringify(detail(p)));
     }
     list.items[date] = items;
@@ -347,8 +347,8 @@ async function write(channels, days) {
 
   await writeSchedules(channels, ids, days, thisYear);
 
-  // Version über die Hülle, nicht über die Daten: sonst holt jedes Gerät nach
-  // jedem Daten-Build die ganze Hülle neu.
+  // Version from the shell, not the data; otherwise every device would refetch
+  // the whole shell after every data build.
   const hash = createHash('sha1');
   for (const f of [
     'index.html',
@@ -376,7 +376,7 @@ async function main() {
     const t = performance.now();
     const xml = await fetchText(f.url);
     feeds.push(collect(xml, days, f.shouty));
-    console.info(`${f.name}: ${feeds.at(-1).size} Sender in ${Math.round(performance.now() - t)} ms`);
+    console.info(`${f.name}: ${feeds.at(-1).size} channels in ${Math.round(performance.now() - t)} ms`);
   }
   const channels = merge(feeds);
   for (const [id, ch] of channels) if (!ch.days.size) channels.delete(id);
@@ -384,8 +384,8 @@ async function main() {
   await write(channels, days);
   const today = days[0].date;
   const n = [...channels.values()].filter((c) => c.days.has(today)).length;
-  console.info(`${channels.size} Sender, heute (${today}) ${n} mit 20:15-Sendung`);
-  if (n < 20) throw new Error('Zu wenige Sender für heute – Quelle kaputt? Nicht ausliefern.');
+  console.info(`${channels.size} channels, today (${today}) ${n} with a 20:15 programme`);
+  if (n < 20) throw new Error('Too few channels for today - source broken? Not deploying.');
 }
 
 await main();

@@ -1,15 +1,15 @@
-// GitHub Pages erlaubt keine eigenen Cache-Header (fix max-age=600), deshalb
-// regelt der Service Worker das Caching selbst:
-//   Hülle   vorab geladen, immer aus dem Cache; neue Version = neuer Worker
-//   Bilder  Namen sind Hashes bzw. feste URLs der Resize-Dienste: Cache zuerst
-//   Daten   sofort aus dem Cache, im Hintergrund neu; bei Änderung Bescheid geben
+// GitHub Pages does not allow custom cache headers (fixed max-age=600), so the
+// service worker handles caching itself:
+//   shell   precached, always from cache; new version = new worker
+//   images  names are hashes or stable resize-service URLs: cache first
+//   data    served from cache immediately, refreshed in the background; notify on change
 
 const VERSION = '__VERSION__';
 const SHELL = `shell-${VERSION}`;
 const DATA = 'data';
 const IMG = 'img';
 const MAX_IMG = 800;
-// Live-Bilder für "Jetzt"; beide Dienste senden CORS, also cachebar.
+// Live images for "Jetzt"; both services send CORS headers, so they are cacheable.
 const IMG_HOSTS = ['wsrv.nl', 'files.fairu.app'];
 
 self.addEventListener('install', (e) => {
@@ -53,7 +53,7 @@ async function notify(url) {
   for (const c of await self.clients.matchAll()) c.postMessage(url.endsWith('list.json') ? 'list' : 'data');
 }
 
-// Tagesdateien von gestern und älter wegräumen.
+// Remove day files from yesterday and older.
 async function purge(cache) {
   const d = new Date(Date.now() - 864e5);
   const cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

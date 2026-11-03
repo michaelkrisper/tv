@@ -1,5 +1,5 @@
-# Neue Hauptversionen von Actions und Paketen als Pull Request. Unterversionen
-# kommen ohnehin von selbst: Actions laufen auf dem Major-Tag (@v7), npm auf ^.
+# New major versions of actions and packages as pull requests. Minor versions
+# arrive anyway: actions use the major tag (@v7), npm uses ^.
 version: 2
 updates:
   - package-ecosystem: github-actions

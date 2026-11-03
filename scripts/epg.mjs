@@ -1,6 +1,6 @@
-// Reines Parsen und Auswählen, ohne Netz und Dateisystem – damit testbar.
-// XMLTV ist flach und regelmäßig genug für reguläre Ausdrücke; ein echter
-// XML-Parser wäre bei 60 MB pro Feed deutlich langsamer.
+// Pure parsing and selection, without network or file system, so it is testable.
+// XMLTV is flat and regular enough for regular expressions; a real XML parser
+// would be much slower on 60 MB per feed.
 
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
@@ -16,7 +16,7 @@ export function decode(s) {
     .trim();
 }
 
-// "20260930181500 +0000" -> ms seit Epoche
+// "20260930181500 +0000" -> ms since epoch
 export function parseTime(s) {
   const m = /^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\s*([+-])(\d\d)(\d\d)/.exec(s);
   if (!m) return Number.NaN;
@@ -44,8 +44,8 @@ function zoneParts(ms, tz) {
   return { y: +p.year, m: +p.month, d: +p.day, h: +p.hour, mi: +p.minute };
 }
 
-// Lokale Wandzeit in einer Zeitzone -> ms. Zwei Schritte reichen, weil 20:15
-// nie in eine Zeitumstellung fällt.
+// Local wall-clock time in a time zone -> ms. Two steps are enough because
+// 20:15 never falls into a DST transition.
 export function zonedToEpoch(y, m, d, h, mi, tz) {
   const guess = Date.UTC(y, m - 1, d, h, mi);
   const p = zoneParts(guess, tz);
@@ -96,7 +96,7 @@ const one = (body, tag) => {
 const all = (body, tag) =>
   [...body.matchAll(new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`, 'g'))].map((m) => decode(m[1]));
 
-// Crew, die manche Feeds fälschlich als <actor> führen.
+// Crew that some feeds wrongly list as <actor>.
 const NOT_A_ROLE = /^(schnitt|kamera|musik|drehbuch|regie|produktion|buch)$/i;
 
 export function parseBody(body) {
@@ -127,12 +127,11 @@ export function isReal(p) {
   return p.title !== '' && !EMPTY.test(p.title) && !EMPTY.test(p.desc.slice(0, 60));
 }
 
-// Titel für den Abgleich zweier Feeds: Satzzeichen und Groß/Klein egal.
+// Title key for matching two feeds: ignores punctuation and case.
 export const titleKey = (t) => slug(t).slice(0, 24);
 
-// Ergänzt fehlende Felder aus einem zweiten Feed, ohne vorhandene zu
-// überschreiben. Die Feeds sind unterschiedlich gut: DE hat Jahr und
-// IMDb-Wertung, AT oft die Besetzung.
+// Fills missing fields from a second feed without overwriting existing ones.
+// The feeds differ in quality: DE has year and IMDb rating, AT often the cast.
 export function enrich(a, b) {
   if (!b || titleKey(a.title) !== titleKey(b.title)) return a;
   const out = { ...a };

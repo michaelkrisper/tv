@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Läuft gegen den fertigen Build in dist/ (vorher `npm run build`).
+// Runs against the finished build in dist/ (run `npm run build` first).
 const PORT = 8081;
 
 export default defineConfig({

@@ -1,7 +1,7 @@
 {
   "name": "tv",
   "version": "1.0.0",
-  "description": "Was jetzt und um 20:15 im Fernsehen läuft – schnelle PWA für Deutschland und Österreich auf GitHub Pages",
+  "description": "What is on TV now and at 20:15 in Germany and Austria - fast PWA on GitHub Pages",
   "homepage": "https://michaelkrisper.github.io/tv/",
   "repository": {
     "type": "git",

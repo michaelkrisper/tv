@@ -1,19 +1,19 @@
 name: Deploy
 
-# Baut die Programmdaten aus dem EPG, testet die App im Browser und
-# veröffentlicht alles auf GitHub Pages. Läuft bei jedem Push und einmal
-# täglich: jeden Tag kommt ein neuer Tag dazu, und kurzfristige Änderungen
-# für den Abend sind um 18 Uhr meist bekannt. Pull Requests werden nur
-# gebaut und getestet, nicht veröffentlicht.
+# Lints and unit-tests, builds the programme data from the EPG, tests the app
+# in the browser and deploys everything to GitHub Pages; any failing step
+# stops the deploy. Runs on every push and twice daily: each day adds a new
+# day, and short-notice changes for the evening are usually known by 18:00.
+# Pull requests are only built and tested, never deployed.
 
 on:
   push:
     branches: [main]
   pull_request:
   schedule:
-    # Cron kennt nur UTC: 18:00 MESZ, im Winter 17:00 MEZ.
+    # Cron is UTC only: 18:00 CEST, 17:00 CET in winter.
     - cron: '0 16 * * *'
-    # Nach Mitternacht (01:30 MESZ / 00:30 MEZ), sonst fehlt bis 18 Uhr der dritte Tag.
+    # After midnight (01:30 CEST / 00:30 CET), otherwise the third day is missing until 18:00.
     - cron: '30 23 * * *'
   workflow_dispatch:
 
@@ -42,20 +42,20 @@ jobs:
       - run: npm ci
       - run: npm run check
 
-      # Zugeschnittene Senderlogos zwischen den Läufen behalten.
+      # Keep the trimmed channel logos between runs.
       - uses: actions/cache@v6
         with:
           path: .cache
           key: logo-${{ github.run_id }}
           restore-keys: logo-
 
-      # Token nur für die GitHub-API (Verzeichnis der Senderlogos), sonst greift
-      # das Limit für anonyme Abrufe von geteilten Runner-Adressen.
+      # Token only for the GitHub API (channel logo index); otherwise the
+      # anonymous rate limit of shared runner addresses applies.
       - run: npm run build
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      # Browser-Tests gegen den fertigen Build, bevor er ausgeliefert wird.
+      # Browser tests against the finished build before it is deployed.
       - id: playwright
         run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v6
@@ -79,23 +79,23 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/deploy-pages@v5
 
-      - name: Nachsehen
+      - name: Check live site
         if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           live="${{ steps.pages.outputs.page_url }}"
           for f in "" data/list.json sw.js manifest.webmanifest; do
-            for versuch in 1 2 3 4 5; do
+            for attempt in 1 2 3 4 5; do
               code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$live$f" || echo 000)"
               [ "$code" = 200 ] && break
               sleep 5
             done
             echo "/$f -> $code"
-            [ "$code" = 200 ] || { echo "::error::/$f antwortet mit $code"; exit 1; }
+            [ "$code" = 200 ] || { echo "::error::/$f responded with $code"; exit 1; }
           done
 
-      # GitHub legt geplante Workflows in öffentlichen Repos nach 60 Tagen ohne
-      # Commit still. Das erneute Aktivieren setzt die Frist zurück.
+      # GitHub disables scheduled workflows in public repos after 60 days
+      # without a commit. Re-enabling resets the timer.
       - if: github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}

@@ -7,32 +7,34 @@ import {
   isoDate,
   isReal,
   parseBody,
+  parseChannels,
   parseTime,
   programmes,
   slug,
+  titleKey,
   zonedToEpoch,
 } from '../scripts/epg.mjs';
 
 const TZ = 'Europe/Vienna';
 
-test('decode: Entitäten und wörtliche \\n', () => {
+test('decode: entities and literal \\n', () => {
   assert.equal(decode('Tom &amp; Jerry &#8211; &#x41;\\nZwei'), 'Tom & Jerry – A\nZwei');
 });
 
-test('parseTime rechnet den Offset heraus', () => {
+test('parseTime removes the UTC offset', () => {
   assert.equal(parseTime('20260930181500 +0000'), Date.UTC(2026, 8, 30, 18, 15));
   assert.equal(parseTime('20260930201500 +0200'), Date.UTC(2026, 8, 30, 18, 15));
 });
 
-test('20:15 Wien in Sommer- und Winterzeit', () => {
+test('20:15 Vienna in summer and winter time', () => {
   assert.equal(zonedToEpoch(2026, 9, 30, 20, 15, TZ), Date.UTC(2026, 8, 30, 18, 15));
   assert.equal(zonedToEpoch(2026, 12, 24, 20, 15, TZ), Date.UTC(2026, 11, 24, 19, 15));
-  // Monatsüberlauf, wie ihn build.mjs für "heute + i" nutzt
+  // Month overflow, as build.mjs uses it for "today + i"
   assert.equal(isoDate(zonedToEpoch(2026, 9, 31, 20, 15, TZ), TZ), '2026-10-01');
   assert.equal(hhmm(Date.UTC(2026, 8, 30, 18, 15), TZ), '20:15');
 });
 
-test('slug vereinheitlicht Sendernamen', () => {
+test('slug normalises channel names', () => {
   assert.equal(slug('ORF III'), 'orfiii');
   assert.equal(slug('Servus TV Österreich'), 'servustvoesterreich');
   assert.equal(slug('ORF SPORT +'), 'orfsport+');
@@ -70,13 +72,13 @@ test('programmes + parseBody', () => {
   assert.ok(isReal(b));
 });
 
-test('Platzhalter ohne Titel oder "kein Programm" fliegen raus', () => {
+test('placeholders without a title or "kein Programm" are dropped', () => {
   const base = parseBody('<title>x</title>');
   assert.ok(!isReal({ ...base, title: '' }));
   assert.ok(!isReal({ ...base, desc: 'Momentan ist kein Programm geplant.' }));
 });
 
-test('enrich füllt nur Lücken und nur bei gleichem Titel', () => {
+test('enrich fills only gaps and only for the same title', () => {
   const a = {
     ...parseBody('<title>Rosamunde Pilcher: Vier Luftballons</title><date>2021</date><desc>kurz</desc>'),
   };
@@ -88,4 +90,66 @@ test('enrich füllt nur Lücken und nur bei gleichem Titel', () => {
   assert.deepEqual(m.actors, [{ n: 'Meriel Hinsching' }]);
   assert.equal(m.desc, 'eine deutlich längere Beschreibung');
   assert.equal(enrich(a, { ...b, title: 'Etwas anderes' }), a);
+});
+
+test('decode keeps unknown entities and trims', () => {
+  assert.equal(decode('  a&nbsp;b &quot;c&quot; '), 'a&nbsp;b "c"');
+});
+
+test('parseTime rejects malformed timestamps', () => {
+  assert.ok(Number.isNaN(parseTime('2026-09-30 18:15')));
+  assert.ok(Number.isNaN(parseTime('')));
+});
+
+test('isoDate and hhmm use the local date around midnight', () => {
+  // 23:30 UTC on 31 Dec is already New Year in Vienna (CET, +1).
+  const ms = Date.UTC(2026, 11, 31, 23, 30);
+  assert.equal(isoDate(ms, TZ), '2027-01-01');
+  assert.equal(hhmm(ms, TZ), '00:30');
+});
+
+test('parseChannels maps ids to decoded display names', () => {
+  const xml = `<tv>
+    <channel id="ORF1.at">
+      <display-name lang="de">ORF 1</display-name>
+    </channel>
+    <channel id="Tele&amp;5.de"><display-name>Tele 5 &amp; Co</display-name></channel>
+  </tv>`;
+  assert.deepEqual(
+    [...parseChannels(xml)],
+    [
+      ['ORF1.at', 'ORF 1'],
+      ['Tele&5.de', 'Tele 5 & Co'],
+    ],
+  );
+});
+
+test('parseBody without optional fields', () => {
+  const b = parseBody(
+    '<title>Nachrichten</title><date>unbekannt</date><rating system="IMDB"><value>n/a</value></rating>',
+  );
+  assert.equal(b.title, 'Nachrichten');
+  assert.equal(b.year, null);
+  assert.equal(b.rating, null);
+  assert.equal(b.img, '');
+  assert.deepEqual(b.genres, []);
+  assert.deepEqual(b.actors, []);
+});
+
+test('isReal drops "Sendepause" titles and notices at the start of the description', () => {
+  const base = parseBody('<title>x</title>');
+  assert.ok(!isReal({ ...base, title: 'Sendepause' }));
+  assert.ok(!isReal({ ...base, desc: 'Programmhinweis: heute geändert' }));
+  assert.ok(isReal({ ...base, desc: `${'a'.repeat(60)} kein Programm` }));
+});
+
+test('titleKey ignores punctuation, case and long suffixes', () => {
+  assert.equal(titleKey('Tatort: Der Fall'), titleKey('TATORT - Der Fall'));
+  assert.equal(titleKey('x'.repeat(40)).length, 24);
+});
+
+test('enrich keeps the original without a second feed', () => {
+  const a = parseBody('<title>Tatort</title>');
+  assert.equal(enrich(a, undefined), a);
+  assert.equal(enrich(a, null), a);
 });

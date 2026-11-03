@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// Echte Daten aus dem Build: geprüft wird das Verhalten, nicht einzelne Sendungen.
+// Real data from the build: tests check behaviour, not individual programmes.
 
 let errors;
 test.beforeEach(({ page }) => {
@@ -12,7 +12,7 @@ test.afterEach(() => expect(errors).toEqual([]));
 const tab = (page, i) => page.locator('#days button').nth(i);
 const detail = (page) => page.locator('#detail');
 
-// Wischen per Touch-Events: Playwright kennt nur Tippen.
+// Swipe via touch events: Playwright only supports taps.
 async function swipe(page, selector, dx) {
   await page.locator(selector).evaluate((el, dx) => {
     const y = innerHeight / 2;
@@ -29,7 +29,7 @@ test.describe('App', () => {
     await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
   });
 
-  test('Tage: Jetzt, heute, morgen, übermorgen', async ({ page }) => {
+  test('days: now, today, tomorrow, day after tomorrow', async ({ page }) => {
     await expect(page.locator('#days button')).toHaveCount(4);
     await expect(tab(page, 0)).toHaveText('Jetzt');
     for (const i of [0, 1, 2, 3]) {
@@ -39,7 +39,7 @@ test.describe('App', () => {
     }
   });
 
-  test('Wischen in der Liste wechselt den Tag', async ({ page }) => {
+  test('swiping the list changes the day', async ({ page }) => {
     await tab(page, 1).click();
     await swipe(page, '#list', -150);
     await expect(tab(page, 2)).toHaveAttribute('aria-pressed', 'true');
@@ -47,7 +47,7 @@ test.describe('App', () => {
     await expect(tab(page, 1)).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('20:15-Sendung: Details und "Danach" mit Bildchen', async ({ page }) => {
+  test('20:15 programme: details and "Danach" with thumbnails', async ({ page }) => {
     await tab(page, 1).click();
     const row = page.locator('#list .row[data-id]').first();
     const title = await row.locator('.t').textContent();
@@ -58,7 +58,7 @@ test.describe('App', () => {
     await expect(next.first()).toBeVisible();
     await expect(next.first().locator('.nt')).toBeAttached();
 
-    // Weiter zur nächsten Sendung und mit Zurück wieder hin
+    // On to the next programme and back again
     const nextTitle = await next.first().locator('span').textContent();
     await next.first().click();
     await expect(detail(page).locator('h2')).toHaveText(nextTitle);
@@ -66,24 +66,24 @@ test.describe('App', () => {
     await expect(detail(page).locator('h2')).toHaveText(title);
   });
 
-  test('Detailseite: nach rechts wischen schließt sie', async ({ page }) => {
+  test('detail page: swiping right closes it', async ({ page }) => {
     await page.locator('#list .row[data-id]').first().click();
     await expect(detail(page)).toHaveAttribute('open', '');
     await swipe(page, '#detail', 150);
     await expect(detail(page)).not.toHaveAttribute('open', '');
   });
 
-  test('Detailseite: Zurück-Knopf schließt sie', async ({ page }) => {
+  test('detail page: back button closes it', async ({ page }) => {
     await page.locator('#list .row[data-id]').first().click();
     await detail(page).locator('.back').click();
     await expect(detail(page)).not.toHaveAttribute('open', '');
   });
 
-  test('iOS-Statusleiste: deckender Streifen liegt oben vorne', async ({ page }) => {
-    // Chromium kennt keinen Safe-Area-Abstand: Höhe wie auf dem iPhone setzen.
-    // pointer-events ignoriert WebKits Prüfung, elementFromPoint nicht.
+  test('iOS status bar: opaque strip is on top at the front', async ({ page }) => {
+    // Chromium has no safe-area inset: set the height as on the iPhone.
+    // WebKit's check ignores pointer-events, elementFromPoint does not.
     await page.addStyleTag({ content: '.edge{height:59px;pointer-events:auto}' });
-    // So prüft WebKit (fixedContainerEdges): Element in der Mitte, 4 px unter dem Rand.
+    // This is how WebKit checks (fixedContainerEdges): element in the middle, 4 px below the edge.
     const probe = await page.evaluate(() => {
       const el = document.elementFromPoint(innerWidth / 2, 4);
       const cs = getComputedStyle(el);
@@ -97,7 +97,7 @@ test.describe('App', () => {
     expect(probe).toEqual({ cls: 'edge', position: 'fixed', widthRatio: 1, alpha: 1 });
   });
 
-  test('Darstellung: hell, dunkel, automatisch', async ({ page }) => {
+  test('theme: light, dark, automatic', async ({ page }) => {
     const html = page.locator('html');
     await page.locator('#gear').click();
     const seg = page.locator('#theme');
@@ -119,7 +119,7 @@ test.describe('App', () => {
     await expect(html).toHaveAttribute('data-theme', 'dark');
   });
 
-  test('Abstand oben: verschiebt Inhalt, Streifen und Detailseite, bleibt gespeichert', async ({ page }) => {
+  test('top inset: shifts content, strip and detail page, and persists', async ({ page }) => {
     const top = () => page.locator('.edge').evaluate((el) => el.getBoundingClientRect().height);
     const base = await top();
     await page.locator('#gear').click();
@@ -138,12 +138,12 @@ test.describe('App', () => {
   });
 });
 
-test.describe('Datenmenge', () => {
-  // Ohne Service Worker, damit jede Anfrage hier sichtbar ist. Der Worker
-  // lädt zusätzlich nur die Hülle (~15 KB) vor.
+test.describe('Transfer size', () => {
+  // Without the service worker so every request is visible here. The worker
+  // only additionally precaches the shell (~15 KB).
   test.use({ serviceWorkers: 'block' });
 
-  test('erster Start inklusive Vorladen bleibt unter 2 MB', async ({ page }) => {
+  test('first start including prefetch stays under 2 MB', async ({ page }) => {
     let bytes = 0;
     let done = 0;
     page.on('requestfinished', async (r) => {
@@ -153,13 +153,13 @@ test.describe('Datenmenge', () => {
     });
     await page.goto('./');
     await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
-    // Bis eine Weile nichts mehr nachkommt: das Vorladen läuft im Leerlauf
-    // (requestIdleCallback mit bis zu 3 s Verzögerung).
+    // Until nothing arrives for a while: prefetching runs when idle
+    // (requestIdleCallback with up to 3 s delay).
     for (let last = -1; last !== done; ) {
       last = done;
       await page.waitForTimeout(4000);
     }
-    console.info(`Erster Start: ${Math.round(bytes / 1024)} KB in ${done} Anfragen`);
+    console.info(`First start: ${Math.round(bytes / 1024)} KB in ${done} requests`);
     expect(bytes).toBeLessThan(2 * 1024 * 1024);
   });
 });

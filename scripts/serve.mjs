@@ -1,5 +1,5 @@
-// Liefert dist/ lokal aus, mit gzip wie GitHub Pages: so stimmen die
-// Datenmengen auch beim Testen. Port per PORT, Standard 8080.
+// Serves dist/ locally with gzip like GitHub Pages, so transfer sizes match
+// in tests too. Port via PORT, default 8080.
 
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';

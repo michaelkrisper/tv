@@ -1,124 +1,130 @@
 # TV
 
 [![Deploy](https://github.com/michaelkrisper/tv/actions/workflows/deploy.yml/badge.svg)](https://github.com/michaelkrisper/tv/actions/workflows/deploy.yml)
-[![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Live demo](https://img.shields.io/badge/demo-michaelkrisper.github.io%2Ftv-2ea44f)](https://michaelkrisper.github.io/tv/)
 
-Was läuft jetzt – und was um 20:15? Alle Sender aus Deutschland und Österreich
-auf einen Blick, als schnelle Web-App zum Installieren.
+What is on right now, and what is on at 20:15 (prime time)? All TV channels of
+Germany and Austria at a glance, as a fast, installable web app.
 
-**https://michaelkrisper.github.io/tv/**
+**Live demo: [michaelkrisper.github.io/tv](https://michaelkrisper.github.io/tv/)**
 
-## Funktionen
+The user interface is in German.
 
-- **Jetzt**: was gerade läuft, mit Restzeit und Fortschrittsbalken
-- **20:15** für heute, morgen und übermorgen, mit Senderlogo, Vorschaubild, Genre und Dauer
-- **Detailseite** mit Beschreibung, Besetzung und Rollen, Regie, Jahr und IMDb-Wertung;
-  darunter **Danach** mit kleinen Vorschaubildern, jeweils antippbar
-- **Gesten**: zwischen den Tagen wischen, auf der Detailseite nach rechts wischen für zurück
-- **Eigene Senderliste**: auswählen und per Ziehen sortieren
-- **Darstellung**: hell, dunkel oder wie das Betriebssystem
-- **Ein Design für alle Plattformen** (iPhone, Android, Desktop); als App installierbar,
-  funktioniert offline mit dem zuletzt geladenen Stand
+## Features
 
-## Schnell und sparsam
+- **Jetzt** (now): what is on right now, with remaining time and a progress bar
+- **20:15** for today, tomorrow and the day after, with channel logo, thumbnail,
+  genre and duration
+- **Detail page** with description, cast and roles, director, year and IMDb
+  rating; below it **Danach** (up next) with small thumbnails, each tappable
+- **Gestures**: swipe between days, swipe right on the detail page to go back
+- **Your own channel list**: pick channels and reorder them by dragging
+- **Theme**: light, dark or follow the operating system
+- **One design on every platform** (iPhone, Android, desktop); installable as
+  an app and works offline with the last loaded data
 
-Die App ist eine einzige HTML-Datei (Vanilla JS und CSS inline, kein Framework) und
-lädt nur, was die eigenen Sender brauchen. Nach dem ersten Bild lädt sie im
-Leerlauf alles vor, damit Tageswechsel und Antippen ohne Netz gehen:
+## Fast and lean
 
-| Erster Start (24 Standardsender, gzip) | |
-|---|---|
-| Seite, Sendungsliste, Senderlogos | ~90 KB |
-| Tagesprogramme und alle Detailtexte | ~415 KB |
-| Vorschaubilder für alle Tage und „Jetzt“ | ~680 KB |
-| **Gesamt** | **~1,2 MB** |
+The app is a single HTML file (vanilla JS and inline CSS, no framework, no
+build step for the app itself) and only loads what the selected channels need.
+After the first paint it prefetches everything while idle, so switching days
+and tapping work without a network:
 
-Danach kommen nur noch die großen Bilder der geöffneten Detailseite (~30 KB). Der
-Service Worker liefert alles sofort aus dem Cache und aktualisiert im Hintergrund.
-Mit aktivem Datensparmodus lädt die App nichts vor. Ein Browser-Test stellt sicher,
-dass der erste Start unter 2 MB bleibt.
+| First start (24 default channels, gzip)  |             |
+| ---------------------------------------- | ----------- |
+| Page, programme list, channel logos      | ~90 KB      |
+| Daily schedules and all detail texts     | ~415 KB     |
+| Thumbnails for all days and "Jetzt"      | ~680 KB     |
+| **Total**                                | **~1.2 MB** |
 
-## Wie es funktioniert
+After that only the large images of an opened detail page are loaded (~30 KB).
+The service worker serves everything from cache immediately and refreshes in
+the background. With data saver enabled the app prefetches nothing. A browser
+test ensures that the first start stays below 2 MB.
 
-Es gibt keinen Server und keine Datenbank. Eine GitHub Action läuft bei jedem Push
-sowie täglich um 18 Uhr und kurz nach Mitternacht:
+## How it works
 
-1. lädt die XMLTV-Programmdaten für Deutschland und Österreich von
-   [epgshare01](https://epgshare01.online/) (je rund 60 MB entpackt),
-2. schneidet pro Sender die Sendung heraus, die um 20:15 (Europe/Vienna) läuft,
-   und ergänzt Lücken aus dem jeweils anderen Feed,
-3. schreibt pro Sender und Tag das ganze Tagesprogramm (für „Jetzt“ und „Danach“),
-4. holt die Senderlogos aus [tv-logo/tv-logos](https://github.com/tv-logo/tv-logos)
-   (transparent auf dem Bild; fast schwarze Logos bekommen einen hellen Schein),
-5. testet die App im Browser und veröffentlicht alles auf GitHub Pages.
+There is no server and no database. A GitHub Action runs on every push and
+daily at 18:00 and shortly after midnight (Vienna time). It
 
-Vorschaubilder lädt die App live: fairu skaliert selbst, alles andere verkleinert
-[wsrv.nl](https://wsrv.nl/) und schneidet auf 16:9 zu (WebP, ~8 KB je Vorschaubild).
+1. downloads the XMLTV programme data for Germany and Austria from
+   [epgshare01](https://epgshare01.online/) (about 60 MB each, uncompressed),
+2. extracts, per channel, the programme running at 20:15 (Europe/Vienna) and
+   fills gaps from the other feed,
+3. writes the full daily schedule per channel and day (for "Jetzt" and
+   "Danach"),
+4. fetches the channel logos from [tv-logo/tv-logos](https://github.com/tv-logo/tv-logos)
+   (transparent on the image; near-black logos get a light glow),
+5. tests the app in a browser and deploys everything to GitHub Pages.
 
-### Daten
+The app loads thumbnails live: fairu resizes on its own, everything else is
+downsized and cropped to 16:9 by [wsrv.nl](https://wsrv.nl/) (WebP, ~8 KB per
+thumbnail).
 
-| Datei | Inhalt | Geladen |
-|---|---|---|
-| `data/list.json` | alle Sender und ihre 20:15-Sendungen (~26 KB gzip) | beim Start |
-| `data/<datum>/<sender>.d.json` | Details zur 20:15-Sendung (~1 KB) | im Leerlauf |
-| `data/<datum>/<sender>.json` | Tagesprogramm in Minuten ab 0 Uhr (~1 KB) | im Leerlauf |
-| `data/<datum>/<sender>.x.json` | Details zum Tagesprogramm (~10 KB) | im Leerlauf (heute) |
+### Data files
 
-### iPhone: Statusleiste
+| File                            | Content                                              | Loaded              |
+| ------------------------------- | ---------------------------------------------------- | ------------------- |
+| `data/list.json`                | all channels and their 20:15 programmes (~26 KB gzip) | on start            |
+| `data/<date>/<channel>.d.json`  | details of the 20:15 programme (~1 KB)               | when idle           |
+| `data/<date>/<channel>.json`    | daily schedule in minutes from 00:00 (~1 KB)          | when idle           |
+| `data/<date>/<channel>.x.json`  | details for the daily schedule (~10 KB)              | when idle (today)   |
 
-iOS 26 legt über installierte Web-Apps oben einen Weichzeichner. Den lässt WebKit
-nur weg, wenn ein deckendes `position: fixed`-Element über die volle Breite an der
-Oberkante liegt; dann füllt es die Statusleiste mit dessen Farbe. Neu bewertet wird
-das erst, wenn das Dokument scrollt, deshalb schiebt die App es nach dem Laden
-einmal unsichtbar um 1 px.
+### iPhone status bar
 
-## Entwicklung
+iOS 26 draws a blur over the top of installed web apps. WebKit omits it only
+when an opaque `position: fixed` element spans the full width at the top edge;
+it then fills the status bar with that element's colour. This is re-evaluated
+only when the document scrolls, so the app scrolls it invisibly by 1 px after
+loading.
 
-Voraussetzung: Node.js 24.
+## Development
+
+Requirement: Node.js 24.
 
 ```sh
 npm ci
-npm run build                     # Daten holen und dist/ schreiben (~10 s)
-npm run serve                     # http://localhost:8080 (mit gzip wie GitHub Pages)
-npm run check                     # Lint (Biome) und Unit-Tests
-npx playwright install chromium   # einmalig
-npm run test:e2e                  # Browser-Tests gegen dist/
+npm run build                     # fetch data and write dist/ (~10 s)
+npm run serve                     # http://localhost:8080 (gzip like GitHub Pages)
+npm run check                     # lint (Biome) and unit tests
+npx playwright install chromium   # once
+npm run test:e2e                  # browser tests against dist/
 ```
 
 ### Tests
 
-- **Unit** (`tests/*.test.mjs`, `node:test`): XMLTV parsen, Zeitzonen und
-  Sommerzeit, Sendernamen, Zusammenführen der Feeds
-- **Browser** (`tests/e2e/`, Playwright, Chromium mit Handy-Viewport): Tage und
-  Wischen, Detailseite mit „Danach“, Zurück per Knopf und Geste, Darstellung,
-  Statusleisten-Streifen für iOS, keine JavaScript-Fehler, Datenmenge unter 2 MB
+- **Unit** (`tests/*.test.mjs`, `node:test`): XMLTV parsing, time zones and
+  daylight saving time, channel names, merging the feeds
+- **Browser** (`tests/e2e/`, Playwright, Chromium with a phone viewport): days
+  and swiping, detail page with "Danach", back via button and gesture, theme,
+  iOS status bar strip, no JavaScript errors, transfer size under 2 MB
 
 ### Deployment
 
-[`deploy.yml`](.github/workflows/deploy.yml) läuft als ein Job: Lint und
-Unit-Tests, Build, Browser-Tests, Veröffentlichen auf GitHub Pages und eine
-Kontrolle der Live-Seite. Schlägt ein Schritt fehl, bleibt die letzte Version
-online. Actions laufen auf ihrer Hauptversion (`@v7`) und bekommen Updates
-automatisch; neue Hauptversionen von Actions und npm-Paketen schlägt
-[Dependabot](.github/dependabot.yml) wöchentlich als Pull Request vor.
+[`deploy.yml`](.github/workflows/deploy.yml) runs as a single job: lint and
+unit tests, build, browser tests, deployment to GitHub Pages and a check of
+the live site. If any step fails, the previous version stays online. Pull
+requests run the same checks without deploying. [Dependabot](.github/dependabot.yml)
+proposes new major versions of actions and npm packages weekly.
 
-## Projektstruktur
+## Project structure
 
 ```
-src/                die App, wie sie ausgeliefert wird (index.html, sw.js, Manifest, Icons)
-scripts/epg.mjs     XMLTV parsen und auswählen (ohne Netz, getestet)
-scripts/build.mjs   Feeds holen, Logos zuschneiden, dist/ schreiben
-scripts/serve.mjs   lokaler Server für dist/
-tests/              Unit-Tests (node:test)
-tests/e2e/          Browser-Tests (Playwright)
+src/                the app as served (index.html, sw.js, manifest, icons)
+scripts/epg.mjs     XMLTV parsing and selection (no network, tested)
+scripts/build.mjs   fetch feeds, trim logos, write dist/
+scripts/serve.mjs   local server for dist/
+tests/              unit tests (node:test)
+tests/e2e/          browser tests (Playwright)
 ```
 
-## Daten und Rechte
+## Data and rights
 
-Die Programmdaten stammen von epgshare01, das sie von TV-Programmzeitschriften
-bezieht. Die Rechte an Texten und Bildern liegen bei den jeweiligen Anbietern;
-dieses Projekt ist nur für den privaten Gebrauch gedacht.
+The programme data comes from epgshare01, which sources it from TV listings
+magazines. Rights to texts and images remain with their respective owners;
+this project is intended for private use only.
 
-## Lizenz
+## License
 
 [MIT](LICENSE)
