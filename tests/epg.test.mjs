@@ -9,6 +9,7 @@ import {
   parseBody,
   parseChannels,
   parseTime,
+  prettyName,
   programmes,
   slug,
   titleKey,
@@ -152,4 +153,29 @@ test('enrich keeps the original without a second feed', () => {
   const a = parseBody('<title>Tatort</title>');
   assert.equal(enrich(a, undefined), a);
   assert.equal(enrich(a, null), a);
+});
+
+test('prettyName lowercases shouted words but keeps abbreviations', () => {
+  assert.equal(prettyName('OBERÖSTERREICH TV'), 'Oberösterreich TV');
+  assert.equal(prettyName('ORF SPORT +'), 'ORF Sport +');
+  assert.equal(prettyName('SKY CINEMA ACTION'), 'Sky Cinema Action');
+  // Mixed case and short all-caps names are left alone.
+  assert.equal(prettyName('ServusTV'), 'ServusTV');
+  assert.equal(prettyName('ORF 2'), 'ORF 2');
+});
+
+test('programmes yields every entry with a decoded channel id', () => {
+  const xml = ['a&amp;b', 'c'].map(
+    (c) =>
+      `<programme start="20260930180000 +0000" stop="20260930190000 +0000" channel="${c}"><title>x</title></programme>`,
+  );
+  assert.deepEqual(
+    [...programmes(xml.join('\n'))].map((p) => p.channel),
+    ['a&b', 'c'],
+  );
+});
+
+test('parseBody treats a non-numeric IMDb rating as missing', () => {
+  const b = parseBody('<title>x</title><rating system="IMDB"><value>N/A</value></rating>');
+  assert.equal(b.rating, null);
 });
