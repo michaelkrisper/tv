@@ -44,7 +44,7 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   `src/index.html` must change together.
 - Thumbnails are not built: the app loads them live from fairu (`?width=`) or wsrv.nl
   (resize/crop to WebP). Both send CORS headers, so the service worker caches them.
-- `src/sw.js`: precached shell (cache `shell-<version>`), cache-first images (capped),
+- `src/sw.js`: precached shell (cache `tv-shell-<version>`), cache-first images (capped),
   stale-while-revalidate data with a change notice. The build replaces `__VERSION__`
   with a hash over the shell files only, not the data, so data builds do not force
   every device to refetch the shell. Installed apps check for a new worker themselves

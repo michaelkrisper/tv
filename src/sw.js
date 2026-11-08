@@ -5,7 +5,9 @@
 //   data    served from cache immediately, refreshed in the background; notify on change
 
 const VERSION = '__VERSION__';
-const SHELL = `shell-${VERSION}`;
+// All apps on michaelkrisper.github.io share one cache storage, so the shell
+// cache carries the app's prefix and cleanup only touches tv-shell- caches.
+const SHELL = `tv-shell-${VERSION}`;
 const DATA = 'data';
 const IMG = 'img';
 const MAX_IMG = 800;
@@ -26,7 +28,9 @@ self.addEventListener('activate', (e) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k.startsWith('shell-') && k !== SHELL).map((k) => caches.delete(k))),
+        Promise.all(
+          keys.filter((k) => k.startsWith('tv-shell-') && k !== SHELL).map((k) => caches.delete(k)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
