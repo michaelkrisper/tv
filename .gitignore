@@ -3,3 +3,4 @@ dist/
 .cache/
 test-results/
 playwright-report/
+CLAUDE.local.md
