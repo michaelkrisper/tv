@@ -123,6 +123,12 @@ test.describe('App', () => {
     expect(probe).toEqual({ cls: 'edge', position: 'fixed', widthRatio: 1, alpha: 1 });
   });
 
+  test('settings show the version at the top', async ({ page }) => {
+    await page.locator('#gear').click();
+    await expect(page.locator('#ver')).toBeInViewport();
+    await expect(page.locator('#ver')).toHaveText(/^Version (v\d+\.\d+\.\d+|dev)$/);
+  });
+
   test('theme: light, dark, automatic', async ({ page }) => {
     const html = page.locator('html');
     await page.locator('#gear').click();

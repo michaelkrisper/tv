@@ -383,10 +383,10 @@ async function write(channels, days) {
   // Version from the shell, not the data; otherwise every device would refetch
   // the whole shell after every data build.
   const hash = createHash('sha1');
-  const html = (await readFile(join(ROOT, 'src', 'index.html'), 'utf8')).replace(
-    '<!-- splash -->',
-    await splash(),
-  );
+  // Same version tag the deploy gives this commit; local builds show "dev".
+  const html = (await readFile(join(ROOT, 'src', 'index.html'), 'utf8'))
+    .replace('<!-- splash -->', await splash())
+    .replace('<!-- version -->', `Version ${process.env.APP_VERSION || 'dev'}`);
   await writeFile(join(DIST, 'index.html'), html);
   hash.update(html);
   for (const f of ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable.png']) {

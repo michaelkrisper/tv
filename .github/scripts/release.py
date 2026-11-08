@@ -2,6 +2,7 @@
 
 Subcommands:
   tag              tag the tested commit on main with the next patch version
+  next             output the version `tag` gives this commit (build stamps it)
   release BUMP     tag main with the next minor or major version, publish a release
   ticket           make sure a pull request is linked to an issue
   automerge        squash-merge a pull request once all of its checks are green
@@ -186,6 +187,21 @@ def cmd_tag() -> int:
         return 0
     output(version=new)
     summary(f"Tagged {sha[:7]} as {new}.")
+    return 0
+
+
+def cmd_next() -> int:
+    """Version the commit has or gets from `tag`; nothing without any tag.
+
+    Runs before the build, so the app can show the version it is deployed as.
+    """
+    sha = os.environ["GITHUB_SHA"]
+    existing = sort_versions(run("git", "tag", "--points-at", sha).split())
+    tags = version_tags()
+    if existing:
+        output(version=existing[-1])
+    elif tags:
+        output(version=bump(tags[-1], "patch"))
     return 0
 
 
@@ -628,7 +644,7 @@ def dispatch(branch: str) -> None:
 
 
 def main(argv: list[str]) -> int:
-    commands = {"tag": cmd_tag, "ticket": cmd_ticket, "automerge": cmd_automerge}
+    commands = {"tag": cmd_tag, "next": cmd_next, "ticket": cmd_ticket, "automerge": cmd_automerge}
     if len(argv) == 2 and argv[1] in commands:
         return commands[argv[1]]()
     if len(argv) == 3 and argv[1] == "release":
