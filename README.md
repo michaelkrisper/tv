@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/michaelkrisper/tv/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelkrisper/tv/actions/workflows/ci.yml)
 [![Deploy](https://github.com/michaelkrisper/tv/actions/workflows/deploy.yml/badge.svg)](https://github.com/michaelkrisper/tv/actions/workflows/deploy.yml)
+[![Version](https://img.shields.io/github/v/tag/michaelkrisper/tv?sort=semver&label=version)](https://github.com/michaelkrisper/tv/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js 26](https://img.shields.io/badge/node-26-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![Live demo](https://img.shields.io/badge/demo-michaelkrisper.github.io%2Ftv-2ea44f)](https://michaelkrisper.github.io/tv/)
@@ -110,10 +111,13 @@ check) and unit tests on every push and pull request to `main`.
 [`deploy.yml`](.github/workflows/deploy.yml) calls the same CI workflow first
 and only then builds, runs the browser tests, deploys to GitHub Pages and
 checks the live site. If any step fails, the previous version stays online.
-Pull requests run the same checks without deploying.
+Pull requests run the same checks without deploying. Every tested commit on
+`main` is tagged with the next patch version and only tagged commits are
+deployed; bundled releases with release notes come from the Release workflow
+(see [CONTRIBUTING](CONTRIBUTING.md#versions-and-releases)).
 [Dependabot](.github/dependabot.yml) proposes updates for actions and npm
-packages weekly (minor and patch updates grouped); its pull requests are
-merged automatically once all checks pass.
+packages weekly (minor and patch updates grouped); like every pull request,
+they are merged automatically once all checks pass.
 
 ## Project structure
 
@@ -131,6 +135,10 @@ tests/e2e/          browser tests (Playwright)
 The programme data comes from epgshare01, which sources it from TV listings
 magazines. Rights to texts and images remain with their respective owners;
 this project is intended for private use only.
+
+## Contributing
+
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
