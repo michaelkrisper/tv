@@ -35,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # tags for the version shown in the app
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -50,9 +52,14 @@ jobs:
 
       # Token only for the GitHub API (channel logo index); otherwise the
       # anonymous rate limit of shared runner addresses applies.
+      # The version job tags only after the tests; the app shows the same version.
+      - id: version
+        if: github.event_name != 'pull_request'
+        run: python3 .github/scripts/release.py next
       - run: npm run build
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
 
       # Browser tests against the finished build before it is deployed.
       - id: playwright
