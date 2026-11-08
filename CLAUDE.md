@@ -38,6 +38,11 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   channels across feeds are mapped via `ALIAS` (keys/values are `slug()`s), display
   names via `NAMES`. Logos come from tv-logo/tv-logos, trimmed with sharp and cached in
   `.cache/` (also cached in CI).
+- iOS launch images: `splash()` in the build writes `dist/splash/*.png` (light/dark per
+  iPhone size) and replaces `<!-- splash -->` in `index.html` with the link tags. Not
+  precached. Copying `src/index.html` to `dist/` for quick E2E runs drops them.
+- Platform variants: the head script sets `html[data-os=ios|android]` (desktop: none);
+  CSS and JS branch on it for tap feedback, transitions, settings sheet, haptics.
 - Output: `data/list.json` (channels + 20:15 items as positional arrays with short
   keys), per day and channel `<id>.json` (schedule), `<id>.d.json` (20:15 details),
   `<id>.x.json` (schedule details). The array layout in `write()` and its reader in

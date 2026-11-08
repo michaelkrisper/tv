@@ -23,6 +23,22 @@ async function swipe(page, selector, dx) {
   }, dx);
 }
 
+// Touch drag through the given points (start, moves, end), one per frame
+// like a real finger, so velocity-based gestures see a realistic speed.
+async function drag(page, selector, points) {
+  await page.locator(selector).evaluate(async (el, points) => {
+    const touch = ([clientX, clientY]) => new Touch({ identifier: 1, target: el, clientX, clientY });
+    const fire = (type, p, list) =>
+      el.dispatchEvent(new TouchEvent(type, { [list]: [touch(p)], bubbles: true, cancelable: true }));
+    fire('touchstart', points[0], 'touches');
+    for (const p of points.slice(1)) {
+      await new Promise((r) => setTimeout(r, 50));
+      fire('touchmove', p, 'touches');
+    }
+    fire('touchend', points.at(-1), 'changedTouches');
+  }, points);
+}
+
 test.describe('App', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('./');
@@ -145,6 +161,109 @@ test.describe('App', () => {
       .locator('.hw')
       .evaluate((el) => el.getBoundingClientRect().top);
     expect(hw).toBe(base + 24);
+  });
+});
+
+test.describe('Android', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.buzz = 0;
+      navigator.vibrate = () => ++window.buzz;
+    });
+    await page.goto('./');
+    await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
+  });
+
+  test('platform, ripple on press, haptics on day change', async ({ page }) => {
+    await expect(page.locator('html')).toHaveAttribute('data-os', 'android');
+    await expect(page.locator('#list')).not.toHaveAttribute('aria-busy');
+    const row = page.locator('#list .row[data-id]').first();
+    const box = await row.boundingBox();
+    await page.mouse.move(box.x + 20, box.y + 20);
+    await page.mouse.down();
+    await expect(row.locator('.rp')).toHaveCount(1);
+    await page.mouse.up();
+    await expect(row.locator('.rp')).toHaveCount(0);
+    await page.locator('#detail .back').click();
+    await tab(page, 2).click();
+    expect(await page.evaluate(() => window.buzz)).toBeGreaterThan(0);
+  });
+
+  test('pull to refresh reloads the programme', async ({ page }) => {
+    const req = page.waitForRequest((r) => r.url().endsWith('data/list.json'));
+    await drag(page, '#list', [
+      [200, 200],
+      [200, 260],
+      [200, 330],
+      [200, 400],
+    ]);
+    await expect(page.locator('#ptr')).toHaveClass(/spin/);
+    await req;
+    await expect(page.locator('#ptr')).not.toHaveClass(/pull/);
+  });
+});
+
+test.describe('iOS home screen app', () => {
+  test.use({
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1',
+  });
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+    await page.goto('./');
+    await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
+  });
+
+  test('platform and launch images', async ({ page, request }) => {
+    await expect(page.locator('html')).toHaveAttribute('data-os', 'ios');
+    const links = page.locator('link[rel=apple-touch-startup-image]');
+    expect(await links.count()).toBeGreaterThan(10);
+    const res = await request.get(await links.first().getAttribute('href'));
+    expect(res.headers()['content-type']).toContain('image/png');
+  });
+
+  test('swipe from the left edge: short drag stays, long drag closes', async ({ page }) => {
+    await page.locator('#list .row[data-id]').first().click();
+    await expect(detail(page)).toHaveAttribute('open', '');
+    await page.waitForTimeout(400);
+    await drag(page, '#detail', [
+      [5, 400],
+      [20, 400],
+      [30, 400],
+      [40, 400],
+      [50, 400],
+    ]);
+    await page.waitForTimeout(400);
+    await expect(detail(page)).toHaveAttribute('open', '');
+    await expect(detail(page)).toHaveAttribute('style', /transform: none|^$/);
+    await drag(page, '#detail', [
+      [5, 400],
+      [60, 400],
+      [200, 400],
+      [320, 400],
+    ]);
+    await expect(detail(page)).not.toHaveAttribute('open', '');
+    await expect(page.locator('#list')).not.toHaveAttribute('style', /translate/);
+  });
+
+  test('settings as a sheet: "Fertig" and dragging down close it', async ({ page }) => {
+    const set = page.locator('#settings');
+    await page.locator('#gear').click();
+    await expect(set).toHaveAttribute('open', '');
+    expect((await set.boundingBox()).y).toBeGreaterThan(0);
+    await expect(set.locator('.grab')).toBeVisible();
+    await set.getByText('Fertig').click();
+    await expect(set).not.toHaveAttribute('open', '');
+
+    await page.locator('#gear').click();
+    await expect(set).toHaveAttribute('open', '');
+    await page.waitForTimeout(500);
+    await drag(page, '#settings .bar', [
+      [200, 40],
+      [200, 120],
+      [200, 260],
+    ]);
+    await expect(set).not.toHaveAttribute('open', '');
   });
 });
 
