@@ -173,6 +173,7 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
 [data-os=ios] .ptr{top:calc(var(--top) + 18px);background:none;box-shadow:none;color:var(--dim)}
 /* Android (Material 3): ripple instead of a highlight, shared-axis transitions, type scale. */
 [data-os=android] .row:active{background:none}
+[data-os=android] .next li:active{opacity:1}
 [data-os=android] :is(.row,.days button,.next li,.add li,.seg button,.icon:not(.back)){position:relative}
 [data-os=android] :is(.row,.days button,.next li,.add li,.seg button,.icon){overflow:hidden}
 .rp{position:absolute;border-radius:50%;background:currentColor;opacity:.14;pointer-events:none;animation:rp .45s cubic-bezier(.2,0,0,1);transition:opacity .3s}
