@@ -301,6 +301,45 @@ async function writeSchedules(channels, ids, days, thisYear) {
   }
 }
 
+// iPhone screens (CSS px and pixel ratio, portrait) for the launch image of the
+// installed app: iOS only shows one that matches the device exactly.
+const SPLASH = [
+  [440, 956, 3],
+  [420, 912, 3],
+  [402, 874, 3],
+  [430, 932, 3],
+  [393, 852, 3],
+  [428, 926, 3],
+  [390, 844, 3],
+  [414, 896, 3],
+  [375, 812, 3],
+  [414, 896, 2],
+  [375, 667, 2],
+];
+const SPLASH_BG = { dark: '#101218', light: '#f4f5f8' };
+
+// Writes the launch images and returns their <link> tags for index.html.
+async function splash() {
+  await mkdir(join(DIST, 'splash'), { recursive: true });
+  const links = [];
+  for (const [w, h, r] of SPLASH) {
+    const icon = await sharp(join(ROOT, 'src', 'icon-512.png'))
+      .resize(128 * r)
+      .toBuffer();
+    for (const [scheme, background] of Object.entries(SPLASH_BG)) {
+      const file = `splash/${w * r}x${h * r}-${scheme}.png`;
+      await sharp({ create: { width: w * r, height: h * r, channels: 3, background } })
+        .composite([{ input: icon }])
+        .png({ palette: true, compressionLevel: 9 })
+        .toFile(join(DIST, file));
+      links.push(
+        `<link rel="apple-touch-startup-image" media="(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: portrait) and (prefers-color-scheme: ${scheme})" href="${file}">`,
+      );
+    }
+  }
+  return links.join('\n');
+}
+
 async function write(channels, days) {
   const ids = [...channels.keys()].sort((a, b) =>
     channels.get(a).name.localeCompare(channels.get(b).name, 'de'),
@@ -344,14 +383,13 @@ async function write(channels, days) {
   // Version from the shell, not the data; otherwise every device would refetch
   // the whole shell after every data build.
   const hash = createHash('sha1');
-  for (const f of [
-    'index.html',
-    'manifest.webmanifest',
-    'icon.svg',
-    'icon-192.png',
-    'icon-512.png',
-    'icon-maskable.png',
-  ]) {
+  const html = (await readFile(join(ROOT, 'src', 'index.html'), 'utf8')).replace(
+    '<!-- splash -->',
+    await splash(),
+  );
+  await writeFile(join(DIST, 'index.html'), html);
+  hash.update(html);
+  for (const f of ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable.png']) {
     await cp(join(ROOT, 'src', f), join(DIST, f));
     hash.update(await readFile(join(ROOT, 'src', f)));
   }

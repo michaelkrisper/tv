@@ -10,11 +10,14 @@
 <title>TV – Was läuft jetzt und um 20:15?</title>
 <meta name="description" content="Was jetzt und heute um 20:15 im Fernsehen läuft – auf einen Blick.">
 <meta name="theme-color" content="#101218">
+<meta name="text-scale" content="scale">
 <script>
 // Set light/dark before the first paint, otherwise the wrong one flashes.
 // "auto" follows the operating system, including later changes.
 function applyTheme(){let p='auto';try{p=localStorage.getItem('tv.theme')||p}catch{}const t=p==='light'||p==='dark'?p:matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t;document.querySelector('meta[name=theme-color]').content=t==='light'?'#f4f5f8':'#101218';return p}
 applyTheme();matchMedia('(prefers-color-scheme: light)').addEventListener('change',applyTheme);
+// Platform for native details (tap feedback, transitions, sheets); desktop gets neither.
+{const u=navigator.userAgent,o=/iP(hone|ad|od)/.test(u)||navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1?'ios':/Android/.test(u)?'android':'';if(o)document.documentElement.dataset.os=o}
 // Extra top inset, adjustable per device (iOS blur under the status bar).
 try{document.documentElement.style.setProperty('--pad',(+localStorage.getItem('tv.top')||0)+'px')}catch{}
 </script>
@@ -24,17 +27,18 @@ try{document.documentElement.style.setProperty('--pad',(+localStorage.getItem('t
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
+<!-- splash -->
 <style>
 :root{--top:calc(env(safe-area-inset-top) + var(--pad,0px))}
-:root{--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
-[data-theme=light]{--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}
+:root{--sel:#3b404d;--bg:#101218;--card:#191c24;--line:#262a35;--fg:#eceef3;--dim:#9097a8;--acc:#ffb547;--r:12px;color-scheme:dark}
+[data-theme=light]{--sel:#fff;--bg:#f4f5f8;--card:#fff;--line:#e2e4ea;--fg:#15171c;--dim:#5d6475;--acc:#c46a00;color-scheme:light}
 *{box-sizing:border-box;margin:0}
 /* The document itself scrolls: only then does Safari collapse its bars and
    re-check the top edge (otherwise the blur stays). */
 html:has(dialog[open]){overflow:hidden}
 html{-webkit-text-size-adjust:100%;touch-action:pan-x pan-y;overscroll-behavior:none;scrollbar-width:none}
 html::-webkit-scrollbar{display:none}
-body{background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{background:var(--bg);color:var(--fg);font:1rem/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .dt p,.dt .sub,.cast{-webkit-user-select:text;user-select:text}
 img{-webkit-user-drag:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
@@ -48,22 +52,22 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .tabs{position:fixed;z-index:2;left:0;right:0;bottom:0;display:flex;align-items:center;gap:4px;height:calc(64px + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom) 12px;background:color-mix(in srgb,var(--card) 60%,var(--bg))}
 .days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
 .days::-webkit-scrollbar{display:none}
-.days button{padding:8px 14px;border-radius:99px;font-size:14px;font-weight:500;white-space:nowrap}
+.days button{padding:8px 14px;border-radius:99px;font-size:.875rem;font-weight:500;white-space:nowrap}
 .days button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#111;font-weight:600}
 .days .now::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4d4d;margin-right:5px;vertical-align:1px;animation:live 2.4s ease-in-out infinite}
 @keyframes live{0%,100%{opacity:1;box-shadow:0 0 0 0 #ff4d4d66}50%{opacity:.55;box-shadow:0 0 0 3px #ff4d4d00}}
 .icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 main{display:block;min-height:100vh;touch-action:pan-y;padding:calc(var(--top) + 6px) max(4px,calc((100% - 760px) / 2)) calc(64px + env(safe-area-inset-bottom) + 8px)}
-.row{position:relative;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;width:100%;text-align:left;padding:4px;border-radius:var(--r);transition:transform .12s,background-color .12s}
-.row:active{background:var(--card);transform:scale(.985)}
+.row{position:relative;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;width:100%;text-align:left;padding:4px;border-radius:var(--r);transition:background-color .12s}
+.row:active{background:var(--card)}
 @media (hover:hover){.row:hover{background:var(--card)}}
 .tw{position:relative;border-radius:8px}
 .th{width:96px;height:auto;aspect-ratio:16/9;border-radius:8px;background:var(--card);object-fit:cover;display:block}
 /* Fade images in instead of popping */
 img.th,img.hero{opacity:0;transition:opacity .2s}
 img.ok{opacity:1}
-.badge{position:absolute;left:0;top:0;max-width:100%;padding:2px 5px;border-radius:8px 0 6px 0;background:#000b;color:#fff;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{position:absolute;left:0;top:0;max-width:100%;padding:2px 5px;border-radius:8px 0 6px 0;background:#000b;color:#fff;font-size:.625rem;font-weight:700;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Logos transparent on the image: a shadow and a darkened corner carry white
    and coloured logos; near-black ones (k) get a light glow. */
 .lg{position:absolute;z-index:1;left:4px;top:4px;display:flex;align-items:center;height:16px}
@@ -74,8 +78,8 @@ img.ok{opacity:1}
 .pg{position:absolute;left:4px;right:4px;bottom:0;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
 .pg i{display:block;height:100%;background:#ff4d4d}
 .pg[hidden]{display:none}
-.t{display:block;font-weight:650;font-size:16px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.m{font-size:12.5px;line-height:1.3;color:var(--dim);font-variant-numeric:tabular-nums}
+.t{display:block;font-weight:650;font-size:1rem;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.m{font-size:.7812rem;line-height:1.3;color:var(--dim);font-variant-numeric:tabular-nums}
 .nw{white-space:nowrap}
 .g{display:inline-flex;min-width:0;align-items:center;gap:3px;padding:0 5px 0 4px;border-radius:5px;background:hsl(var(--h) var(--s) 55% / .17);color:hsl(var(--h) var(--s) 76%)}
 .g span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -93,21 +97,21 @@ dialog[open]{animation:push .3s cubic-bezier(.2,.8,.2,1)}
 dialog[open]::backdrop{animation:fade .3s}
 @keyframes push{from{transform:translateX(100%)}}
 @keyframes fade{from{opacity:0}}
-@media (prefers-reduced-motion:reduce){dialog[open],dialog[open]::backdrop,.days .now::before{animation:none}img.th,img.hero,.row{transition:none}}
+@media (prefers-reduced-motion:reduce){dialog[open],dialog[open]::backdrop,.days .now::before,.sk *{animation:none}img.th,img.hero,.row{transition:none}}
 @media (min-width:800px){dialog{height:auto;max-height:92vh;margin:4vh auto;border-radius:16px}}
 /* iOS 26, home screen: the window is short by the status bar height
    (WebKit bug 301108), so bottom:0 and 100% end too early. 100vh is correct. */
 @media (display-mode:standalone) and (max-width:799px){.tabs{bottom:auto;top:calc(100vh - 64px - env(safe-area-inset-bottom))}dialog{height:100vh;max-height:100vh}}
 .bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:calc(var(--top) + 8px) 8px 8px;background:var(--bg)}
-.bar h2{font-size:18px;flex:1}
+.bar h2{font-size:1.125rem;flex:1}
 /* Streaming-style detail: the image fades into the background, title over the image. */
 .hw{position:relative;background:var(--card) center/cover}
 .hero{width:100%;aspect-ratio:16/10;object-fit:cover;display:block}
 .hw::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,#0007 0,transparent 20%,transparent 38%,var(--bg) 98%);pointer-events:none}
 .ht{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:0 16px 2px}
-.ht h2{font-size:28px;line-height:1.12;font-weight:800;letter-spacing:-.3px;margin:6px 0 5px;text-wrap:balance;text-shadow:0 1px 14px #000a}
+.ht h2{font-size:1.75rem;line-height:1.12;font-weight:800;letter-spacing:-.3px;margin:6px 0 5px;text-wrap:balance;text-shadow:0 1px 14px #000a}
 [data-theme=light] .ht h2{text-shadow:0 1px 12px #fffc}
-.ht .m{font-size:13.5px}
+.ht .m{font-size:.8438rem}
 .chn{display:flex;align-items:center;gap:8px}
 .ht .lg{position:static;display:inline-flex;height:24px}
 .ht .lg img{max-width:96px}
@@ -117,17 +121,17 @@ dialog[open]::backdrop{animation:fade .3s}
 .hw.no{background:none;padding-top:52px}
 .hw.no::after{display:none}
 .hw.no .ht{position:static}
-.ch{font-size:11px;line-height:1.2;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--acc)}
+.ch{font-size:.6875rem;line-height:1.2;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--acc)}
 .dt{padding:10px 16px calc(env(safe-area-inset-bottom) + 28px)}
 .dt .sub{color:var(--dim);font-weight:600;margin-bottom:8px}
-.dt .m{margin:0 0 10px;font-size:13.5px}
+.dt .m{margin:0 0 10px;font-size:.8438rem}
 .dt p{margin:0 0 10px;line-height:1.5}
-.dt h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:16px 0 6px}
+.dt h3{font-size:.8125rem;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:16px 0 6px}
 .cast{display:flex;flex-wrap:wrap;gap:6px;padding:0;list-style:none}
-.cast li{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:14px}
+.cast li{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:.875rem}
 .cast small{color:var(--dim)}
 .next{list-style:none;padding:0}
-.next li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px;cursor:pointer}
+.next li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.9375rem;cursor:pointer}
 .next li span{flex:1}
 .next li:active{opacity:.6}
 .chev{width:8px;height:8px;border:solid var(--dim);border-width:2px 2px 0 0;transform:rotate(45deg);margin-right:6px}
@@ -138,7 +142,7 @@ dialog[open]::backdrop{animation:fade .3s}
 /* Stays in place while scrolling; negative bottom margin so it takes no space. */
 .back{position:sticky;z-index:2;top:calc(var(--top) + 8px);margin:8px 0 -42px 8px;background:#000a;color:#fff}
 .sec{padding:4px 12px 12px}
-.sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:14px 4px 6px}
+.sec h3{font-size:.8125rem;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:14px 4px 6px}
 .chl{list-style:none;padding:0}
 .chl li{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 8px;background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:6px;min-height:48px;touch-action:pan-y}
 .chl li>span:not(.lg){flex:1}
@@ -146,20 +150,73 @@ dialog[open]::backdrop{animation:fade .3s}
 .chl li.drag{opacity:.9;box-shadow:0 6px 20px #0008;position:relative;z-index:2}
 .handle{touch-action:none;cursor:grab;color:var(--dim)}
 .add li{cursor:pointer}
-.add li::after{content:"+";font-size:22px;color:var(--acc);padding:0 12px}
+.add li::after{content:"+";font-size:1.375rem;color:var(--acc);padding:0 12px}
 input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);margin-bottom:8px}
 .seg{display:flex;gap:2px;padding:3px;border-radius:99px;background:var(--card);border:1px solid var(--line)}
-.seg button{flex:1;padding:8px 6px;border-radius:99px;font-size:14px;font-weight:500}
+.seg button{flex:1;padding:8px 6px;border-radius:99px;font-size:.875rem;font-weight:500}
 .seg [aria-checked=true]{background:var(--acc);color:#111;font-weight:600}
 .range{display:flex;align-items:center;gap:12px;padding:0 4px}
 .range input{flex:1;accent-color:var(--acc)}
-.range output{min-width:44px;text-align:right;font-size:14px;color:var(--dim)}
-.reset{color:var(--dim);font-size:14px;text-decoration:underline;padding:8px 4px}
+.range output{min-width:44px;text-align:right;font-size:.875rem;color:var(--dim)}
+.reset{color:var(--dim);font-size:.875rem;text-decoration:underline;padding:8px 4px}
+/* Loading: placeholder rows in the shape of the list. */
+.sk .th,.sk .t,.sk .m{background:var(--card);border-radius:6px;animation:sk 1s ease-in-out infinite alternate}
+.sk .t{height:1rem;width:70%;margin-bottom:8px}
+.sk .m{display:block;height:.75rem;width:40%}
+@keyframes sk{to{opacity:.4}}
+/* Pull to refresh; hidden (not just transparent) when idle, so it never sits at the top edge. */
+.ptr{position:fixed;z-index:2;left:50%;top:calc(var(--top) - 40px);width:36px;height:36px;margin-left:-18px;border-radius:50%;display:grid;place-items:center;color:var(--acc);background:var(--card);box-shadow:0 2px 6px #0005;visibility:hidden;opacity:0;pointer-events:none}
+.ptr.pull{visibility:visible}
+.ptr i{width:18px;height:18px;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%}
+.ptr.spin i{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+[data-os=ios] .ptr{top:calc(var(--top) + 18px);background:none;box-shadow:none;color:var(--dim)}
+/* Android (Material 3): ripple instead of a highlight, shared-axis transitions, type scale. */
+[data-os=android] .row:active{background:none}
+[data-os=android] :is(.row,.days button,.next li,.add li,.seg button,.icon:not(.back)){position:relative}
+[data-os=android] :is(.row,.days button,.next li,.add li,.seg button,.icon){overflow:hidden}
+.rp{position:absolute;border-radius:50%;background:currentColor;opacity:.14;pointer-events:none;animation:rp .45s cubic-bezier(.2,0,0,1);transition:opacity .3s}
+.rp.out{opacity:0}
+@keyframes rp{from{transform:scale(0)}}
+[data-os=android] dialog[open]{animation:axis .3s cubic-bezier(.2,0,0,1)}
+@keyframes axis{from{transform:translateX(30px);opacity:0}}
+[data-os=android] .t{font-weight:500}
+[data-os=android] .ht h2{font-weight:400;letter-spacing:0}
+[data-os=android] .bar h2{font-size:1.375rem;font-weight:400}
+[data-os=android] :is(.sec,.dt) h3{text-transform:none;letter-spacing:.1px;font-size:.875rem;font-weight:500;color:var(--acc)}
+/* iOS: Dynamic Type (text sizes are rem), grouped inset lists, segmented control. */
+[data-os=ios]{font:-apple-system-body}
+[data-os=ios] dialog{touch-action:pan-y}
+[data-os=ios] .chl{background:var(--card);border-radius:10px;overflow:hidden}
+[data-os=ios] .chl li{margin:0;border:0;border-radius:0;background:none;box-shadow:inset 0 -.5px var(--line)}
+[data-os=ios] .chl li:last-child{box-shadow:none}
+[data-os=ios] .chl li.drag{background:var(--card);box-shadow:0 6px 20px #0008}
+[data-os=ios] input[type=search]{border:0}
+[data-os=ios] .seg{border:0;border-radius:9px;padding:2px}
+[data-os=ios] .seg button{border-radius:7px;padding:6px;font-size:.8125rem}
+[data-os=ios] .seg [aria-checked=true]{background:var(--sel);color:var(--fg);box-shadow:0 1px 4px #0003}
+/* iOS phone: settings as a sheet from the bottom with a grabber and "Fertig".
+   Anchored at the top: bottom:0 ends too early in the home screen app (see above). */
+.grab,.done{display:none}
+@media (max-width:799px){
+[data-os=ios] #settings{top:calc(var(--top) + 10px);bottom:auto;height:calc(100% - var(--top) - 10px);border-radius:12px 12px 0 0}
+[data-os=ios] #settings[open]{animation:sheet .4s cubic-bezier(.2,.8,.2,1)}
+[data-os=ios] #settings .bar{justify-content:center;padding:18px 16px 10px;touch-action:none}
+[data-os=ios] #settings .bar .icon{display:none}
+[data-os=ios] #settings .bar h2{flex:none;font-size:1.0625rem;font-weight:600}
+[data-os=ios] .grab{display:block;position:absolute;top:6px;left:50%;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:var(--line)}
+[data-os=ios] .done{display:block;position:absolute;right:8px;bottom:4px;padding:6px 8px;color:var(--acc);font-weight:600}
+}
+@media (display-mode:standalone) and (max-width:799px){[data-os=ios] #settings{height:calc(100vh - var(--top) - 10px)}}
+@keyframes sheet{from{transform:translateY(100%)}}
+@media (prefers-reduced-motion:reduce){[data-os] :is(#settings,#detail)[open]{animation:none}}
 </style>
 </head>
 <body>
 <div class="edge" aria-hidden="true"></div>
-<main id="list"><p class="msg">Lade Programm …</p></main>
+<main id="list" aria-busy="true"></main>
+<script>document.getElementById('list').innerHTML='<div class="row sk"><div class="th"></div><div><span class="t"></span><span class="m"></span></div></div>'.repeat(10)</script>
+<div class="ptr" id="ptr" aria-hidden="true"><i></i></div>
 <footer class="tabs">
   <nav class="days" id="days"></nav>
   <button class="icon" id="gear" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--bg)"/><circle cx="15" cy="12" r="2" fill="var(--bg)"/><circle cx="8" cy="18" r="2" fill="var(--bg)"/></svg></button>
@@ -168,7 +225,7 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
 <dialog id="detail" autofocus></dialog>
 
 <dialog id="settings" autofocus>
-  <div class="bar"><button class="icon" data-close aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Einstellungen</h2></div>
+  <div class="bar"><span class="grab"></span><button class="icon" data-close aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Einstellungen</h2><button class="done" data-close>Fertig</button></div>
   <div class="sec">
     <h3>Darstellung</h3>
     <div class="seg" id="theme" role="radiogroup" aria-label="Darstellung"><button role="radio" data-v="auto">Automatisch</button><button role="radio" data-v="light">Hell</button><button role="radio" data-v="dark">Dunkel</button></div>
@@ -190,6 +247,11 @@ const DEFAULT = ['orf1','orf2','tlc','tele5','prosieben','rtlzwei','puls4','zdfn
 const KEY = 'tv.channels.2';
 const NOW = 'jetzt';
 const $ = (s) => document.querySelector(s);
+const OS = document.documentElement.dataset.os;
+const IOS = OS === 'ios';
+const ANDROID = OS === 'android';
+const narrow = matchMedia('(max-width: 799px)');
+const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 // Images load live: fairu resizes itself, everything else (TV Spielfilm
@@ -367,6 +429,7 @@ async function renderList() {
   }
   shown = new Map(ids.map((id, k) => [id, items[k]]));
   const el = $('#list');
+  el.removeAttribute('aria-busy');
   el.innerHTML = ids.length ? ids.map((id, k) => rowHtml(id, items[k], k)).join('') : '<p class="msg">Keine Sender ausgewählt.</p>';
   settleImages(el);
   updateProgress();
@@ -394,6 +457,7 @@ async function goView(v) {
   const vs = views();
   const dir = Math.sign(vs.indexOf(v) - vs.indexOf(view));
   if (!dir) return;
+  haptic();
   view = v;
   const el = $('#list');
   // No fade-out first: the new list is drawn at once, only the slide-in animates.
@@ -401,6 +465,21 @@ async function goView(v) {
   scrollTo(0, 0);
   if (reduce.matches || !el.animate || view !== v) return;
   el.animate([{ transform: `translateX(${dir * 40}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 170, easing: 'ease-out' });
+}
+
+// Haptics: Android vibrates. iOS (18+) has no API, but toggling a switch
+// control ticks the Taptic Engine; that only works within a user gesture.
+let hapticEl = null;
+function haptic() {
+  if (ANDROID) navigator.vibrate?.(8);
+  if (!IOS) return;
+  if (!hapticEl) {
+    hapticEl = document.createElement('label');
+    hapticEl.hidden = true;
+    hapticEl.innerHTML = '<input type="checkbox" switch>';
+    document.body.append(hapticEl);
+  }
+  hapticEl.click();
 }
 
 // Horizontal swipe. Not from the edge: that is the system back gesture.
@@ -466,6 +545,7 @@ let current = null;
 // dir: 0 = from the list, 1 = forward to "Danach", -1 = back
 async function openDetail(it, dir = 0) {
   if (!it) return;
+  resetEdge();
   const id = it.id;
   current = it;
   const cors = it.live ? ' crossorigin="anonymous"' : '';
@@ -476,9 +556,10 @@ async function openDetail(it, dir = 0) {
   dlg.innerHTML = `${backBtn}<div class="hw${hero ? '' : ' no'}"${bg}>${hero}<div class="ht">${mark}<h2>${esc(it.title)}</h2><div class="m">${meta(it)}</div>${progressBar(it)}</div></div><div class="dt"><div id="dx"></div></div>`;
   settleImages(dlg);
   updateProgress();
-  if (!dlg.open) { dlg.showModal(); history.pushState({ d: 1 }, ''); }
+  if (!dlg.open) { dlg.showModal(); history.pushState({ d: 1 }, ''); parallax(true); }
   else if (dir && !reduce.matches && Date.now() - edgeSwipe > 1500) {
-    dlg.animate([{ transform: `translateX(${dir * 35}%)`, opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    const from = ANDROID ? { transform: `translateX(${dir * 30}px)`, opacity: 0 } : { transform: `translateX(${dir * 35}%)`, opacity: 0.4 };
+    dlg.animate([from, { transform: 'none', opacity: 1 }], { duration: ANDROID ? 300 : 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
   }
   dlg.scrollTop = 0;
   const [x, next] = await Promise.all([
@@ -499,17 +580,90 @@ async function openDetail(it, dir = 0) {
   dx.innerHTML = body;
 }
 
-// Back slides the view out to the right. Not for Safari's swipe gesture from
-// the left edge: that already animates itself, otherwise it would run twice.
+// Back slides the view out to the right (Android: shared axis, iOS sheet: down).
+// Not for Safari's swipe gesture from the left edge, nor after our own drag
+// gestures: those already animated, otherwise it would run twice.
 let edgeSwipe = 0;
-addEventListener('touchstart', (e) => { if (e.touches[0].clientX < 30) edgeSwipe = Date.now(); }, { passive: true });
+if (!(IOS && standalone)) addEventListener('touchstart', (e) => { if (e.touches[0].clientX < 30) edgeSwipe = Date.now(); }, { passive: true });
 const EASE_OUT = { duration: 250, easing: 'cubic-bezier(.4,0,.8,.2)' };
+const sheet = () => IOS && narrow.matches;
 function closeDialogs() {
   for (const d of document.querySelectorAll('dialog[open]')) {
     if (reduce.matches || Date.now() - edgeSwipe < 1500 || !d.animate) { d.close(); continue; }
-    d.animate([{ transform: 'none' }, { transform: 'translateX(100%)' }], EASE_OUT).finished.then(() => d.close());
-    try { d.animate([{ opacity: 1 }, { opacity: 0 }], { ...EASE_OUT, pseudoElement: '::backdrop' }); } catch {}
+    let kf = [{ transform: 'none' }, { transform: 'translateX(100%)' }];
+    let opt = EASE_OUT;
+    if (d === set && sheet()) kf = [{ transform: 'none' }, { transform: 'translateY(100%)' }];
+    else if (ANDROID) { kf = [{ transform: 'none', opacity: 1 }, { transform: 'translateX(30px)', opacity: 0 }]; opt = { duration: 200, easing: 'cubic-bezier(.3,0,.8,.15)' }; }
+    d.animate(kf, opt).finished.then(() => d.close());
+    try { d.animate([{ opacity: 1 }, { opacity: 0 }], { ...opt, pseudoElement: '::backdrop' }); } catch {}
+    if (d === dlg) parallax(false);
   }
+}
+
+// iOS: the list underneath moves a third to the left and back, like a navigation push.
+function parallax(open) {
+  if (!IOS || !narrow.matches || reduce.matches) return;
+  const kf = [{ transform: 'none' }, { transform: 'translateX(-30%)' }];
+  $('#list').animate(open ? kf : kf.reverse(), open ? { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' } : EASE_OUT);
+}
+
+// iOS home screen app: there is no system back gesture, so the detail page
+// follows the finger from the left edge, the list moving along underneath.
+let resetEdge = () => {};
+if (IOS && standalone) {
+  const main = $('#list');
+  let g = null;
+  let fade = null;
+  resetEdge = () => {
+    dlg.style.transform = '';
+    main.style.transform = '';
+    fade?.cancel();
+    fade = null;
+  };
+  const follow = (dx) => {
+    dlg.style.transform = `translateX(${dx}px)`;
+    main.style.transform = `translateX(${-30 * (1 - dx / innerWidth)}%)`;
+    if (fade) fade.currentTime = (dx / innerWidth) * 1000;
+  };
+  dlg.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    g = t.clientX < 24 && narrow.matches && !reduce.matches ? { x: t.clientX, y: t.clientY, dx: 0, v: 0, at: e.timeStamp, on: false } : null;
+  }, { passive: true });
+  dlg.addEventListener('touchmove', (e) => {
+    if (!g) return;
+    const t = e.touches[0];
+    const dx = Math.max(0, t.clientX - g.x);
+    if (!g.on) {
+      if (Math.abs(t.clientY - g.y) > Math.max(10, dx)) { g = null; return; }
+      if (dx < 10) return;
+      g.on = true;
+      try { fade = dlg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1000, fill: 'both', pseudoElement: '::backdrop' }); fade.pause(); } catch { fade = null; }
+    }
+    e.preventDefault();
+    g.v = (dx - g.dx) / Math.max(1, e.timeStamp - g.at);
+    g.dx = dx;
+    g.at = e.timeStamp;
+    follow(dx);
+  }, { passive: false });
+  const end = () => {
+    if (!g?.on) { g = null; return; }
+    const { dx, v } = g;
+    g = null;
+    const w = innerWidth;
+    const done = dx > w * 0.4 || v > 0.4;
+    const opt = { duration: 250, easing: 'cubic-bezier(.2,.8,.2,1)' };
+    main.animate([{ transform: main.style.transform }, { transform: done ? 'none' : 'translateX(-30%)' }], opt);
+    if (fade) { fade.playbackRate = done ? 4 : -4; fade.play(); }
+    dlg.animate([{ transform: `translateX(${dx}px)` }, { transform: `translateX(${done ? w : 0}px)` }], opt).finished.then(() => {
+      if (!done) { resetEdge(); return; }
+      dlg.style.transform = `translateX(${w}px)`;
+      main.style.transform = '';
+      edgeSwipe = Date.now();
+      history.back();
+    });
+  };
+  dlg.addEventListener('touchend', end);
+  dlg.addEventListener('touchcancel', end);
 }
 addEventListener('popstate', () => {
   if (dlg.open && trail.length) openDetail(trail.pop(), -1);
@@ -522,7 +676,7 @@ dlg.addEventListener('click', (e) => {
   history.pushState({ d: trail.length + 1 }, '');
   openDetail(current.nextList[li.dataset.k], 1);
 });
-dlg.addEventListener('close', () => { trail.length = 0; });
+dlg.addEventListener('close', () => { trail.length = 0; resetEdge(); });
 // Swipe right on the detail page: back.
 onSwipe(dlg, (dir) => { if (dir < 0) history.back(); });
 for (const d of document.querySelectorAll('dialog')) {
@@ -588,6 +742,40 @@ $('#gear').addEventListener('click', () => {
 });
 $('#q').addEventListener('input', renderOthers);
 
+// iOS sheet: drag the title bar down to close.
+if (IOS) {
+  const bar = set.querySelector('.bar');
+  let g = null;
+  bar.addEventListener('touchstart', (e) => {
+    g = sheet() && !reduce.matches ? { y: e.touches[0].clientY, dy: 0, v: 0, at: e.timeStamp } : null;
+  }, { passive: true });
+  bar.addEventListener('touchmove', (e) => {
+    if (!g) return;
+    e.preventDefault();
+    const dy = Math.max(0, e.touches[0].clientY - g.y);
+    g.v = (dy - g.dy) / Math.max(1, e.timeStamp - g.at);
+    g.dy = dy;
+    g.at = e.timeStamp;
+    set.style.transform = `translateY(${dy}px)`;
+  }, { passive: false });
+  const end = () => {
+    if (!g?.dy) { g = null; return; }
+    const { dy, v } = g;
+    g = null;
+    const done = dy > 120 || v > 0.5;
+    const to = done ? set.offsetHeight : 0;
+    set.animate([{ transform: `translateY(${dy}px)` }, { transform: `translateY(${to}px)` }], { duration: 250, easing: 'cubic-bezier(.2,.8,.2,1)' }).finished.then(() => {
+      set.style.transform = done ? `translateY(${to}px)` : '';
+      if (!done) return;
+      edgeSwipe = Date.now();
+      history.back();
+    });
+  };
+  bar.addEventListener('touchend', end);
+  bar.addEventListener('touchcancel', end);
+  set.addEventListener('close', () => { set.style.transform = ''; });
+}
+
 $('#others').addEventListener('click', (e) => {
   const li = e.target.closest('li');
   if (!li) return;
@@ -618,6 +806,7 @@ $('#mine').addEventListener('pointerdown', (e) => {
   li.classList.add('drag');
   h.setPointerCapture(e.pointerId);
   let startY = e.clientY;
+  const gap = parseFloat(getComputedStyle(li).marginBottom) || 0;
   const move = (ev) => {
     li.style.transform = `translateY(${ev.clientY - startY}px)`;
     const prev = li.previousElementSibling;
@@ -626,11 +815,12 @@ $('#mine').addEventListener('pointerdown', (e) => {
     const mid = r.top + r.height / 2;
     if (prev && mid < prev.getBoundingClientRect().top + prev.offsetHeight / 2) {
       ul.insertBefore(li, prev);
-      startY -= prev.offsetHeight + 6;
+      startY -= prev.offsetHeight + gap;
     } else if (next && mid > next.getBoundingClientRect().top + next.offsetHeight / 2) {
       ul.insertBefore(next, li);
-      startY += next.offsetHeight + 6;
+      startY += next.offsetHeight + gap;
     } else return;
+    haptic();
     li.style.transform = `translateY(${ev.clientY - startY}px)`;
   };
   const up = () => {
@@ -646,13 +836,94 @@ $('#mine').addEventListener('pointerdown', (e) => {
   h.addEventListener('pointercancel', up, { once: true });
 });
 
+// Android: Material ripple from the touch point, held for at least 150 ms.
+if (ANDROID) document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.row[data-id],.days button,.icon:not(.handle),.next li,.add li,.seg button');
+  if (!el || reduce.matches) return;
+  const r = el.getBoundingClientRect();
+  const d = 2 * Math.hypot(r.width, r.height);
+  const rp = document.createElement('span');
+  rp.className = 'rp';
+  rp.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
+  el.append(rp);
+  const t = Date.now();
+  const ac = new AbortController();
+  const out = () => {
+    ac.abort();
+    setTimeout(() => { rp.classList.add('out'); setTimeout(() => rp.remove(), 300); }, Math.max(0, 150 - (Date.now() - t)));
+  };
+  for (const ev of ['pointerup', 'pointercancel']) addEventListener(ev, out, { signal: ac.signal });
+});
+
+// Pull to refresh at the top of the list. iOS: the list moves down and reveals
+// a spinner; Android: a Material disc slides down over the list.
+{
+  const main = $('#list');
+  const ptr = $('#ptr');
+  const GO = 64;
+  let p = null;
+  let busy = false;
+  const pullTo = (d, anim) => {
+    const tr = anim ? 'transform .25s, opacity .25s' : 'none';
+    ptr.style.transition = tr;
+    main.style.transition = tr;
+    ptr.style.opacity = Math.min(1, d / (IOS ? GO : 40));
+    if (IOS) {
+      main.style.transform = d ? `translateY(${d}px)` : '';
+      ptr.style.transform = `rotate(${d * 5}deg)`;
+    } else ptr.style.transform = `translateY(${d}px) rotate(${d * 5}deg)`;
+  };
+  const settle = () => {
+    pullTo(0, true);
+    setTimeout(() => { if (!p && !busy) ptr.classList.remove('pull', 'spin'); main.style.transition = ''; }, 260);
+  };
+  main.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    p = !busy && list && scrollY <= 0 ? { x: t.clientX, y: t.clientY, d: 0, on: false } : null;
+  }, { passive: true });
+  main.addEventListener('touchmove', (e) => {
+    if (!p) return;
+    const t = e.touches[0];
+    const dy = t.clientY - p.y;
+    const dx = Math.abs(t.clientX - p.x);
+    if (!p.on) {
+      if (dy < 10 || dx > dy) { if (dx > 10 || dy < -10) p = null; return; }
+      p.on = true;
+      ptr.classList.add('pull');
+    }
+    const d = Math.min(96, (dy - 10) * 0.5);
+    if (d >= GO !== p.d >= GO) haptic();
+    p.d = Math.max(0, d);
+    pullTo(p.d);
+  }, { passive: true });
+  const end = async () => {
+    const go = p?.on && p.d >= GO;
+    const pulled = p?.on;
+    p = null;
+    if (!go) { if (pulled) settle(); return; }
+    busy = true;
+    ptr.classList.add('spin');
+    pullTo(GO, true);
+    await Promise.all([refresh().then(renderList), new Promise((r) => setTimeout(r, 700))]);
+    busy = false;
+    settle();
+  };
+  main.addEventListener('touchend', end);
+  main.addEventListener('touchcancel', end);
+}
+
 // Like an app: no pinch zoom. iOS ignores user-scalable=no in the browser.
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault());
 
 // ---- Startup ---------------------------------------------------------------
 async function refresh() {
   try { applyList(await getList()); }
-  catch { if (!list) $('#list').innerHTML = '<p class="msg">Programm konnte nicht geladen werden.</p>'; }
+  catch {
+    if (list) return;
+    const el = $('#list');
+    el.removeAttribute('aria-busy');
+    el.innerHTML = '<p class="msg">Programm konnte nicht geladen werden.</p>';
+  }
 }
 
 // Prefetch what the selected channels need while idle (under 2 MB in total):
