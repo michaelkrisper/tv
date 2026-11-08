@@ -206,6 +206,7 @@ let view = null; // NOW or a date (20:15 view)
 let names = new Map();
 let logos = new Map();
 let shown = new Map(); // id -> programme of the current view, for taps
+let renderedDay = null; // day of the last list render, to notice a day change
 const details = new Map();
 const scheds = new Map();
 const schedX = new Map();
@@ -371,7 +372,6 @@ async function renderList() {
   updateProgress();
   renderedDay = localIso();
 }
-let renderedDay = null;
 
 function views() {
   const today = localIso();
@@ -682,10 +682,11 @@ function tick() {
 }
 setInterval(() => { if (document.visibilityState === 'visible' && list) tick(); }, 20000);
 
-// "Jetzt" needs today's schedules: load them alongside list.json, not only in
-// the idle prefetch, so tapping "Jetzt" right after the start does not wait.
-for (const id of mine ?? DEFAULT) getSched(localIso(), id);
 refresh().then(() => {
+  // "Jetzt" needs today's schedules: load them right after the first paint, not
+  // only in the idle prefetch, so tapping "Jetzt" does not wait. After the list,
+  // so they do not compete with list.json and the visible logos.
+  if (list && !navigator.connection?.saveData) for (const id of myChannels()) getSched(localIso(), id);
   (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 });
 });
 // Back in the app: rebuild the list only after a day change (labels, views);
