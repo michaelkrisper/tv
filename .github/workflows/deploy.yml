@@ -5,7 +5,8 @@ name: Deploy
 # everything to GitHub Pages. Any failing step stops the deploy. Runs on every
 # push to main and twice daily: each day adds a new day, and short-notice
 # changes for the evening are usually known by 18:00.
-# Pull requests are only built and tested, never deployed.
+# Pull requests are only built and tested, never deployed. Every tested commit
+# on main gets the next patch version tag; only tagged commits are deployed.
 
 on:
   push:
@@ -29,17 +30,9 @@ jobs:
   test:
     uses: ./.github/workflows/ci.yml
 
-  deploy:
+  build:
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-      actions: write
-    environment:
-      name: ${{ github.event_name != 'pull_request' && 'github-pages' || '' }}
-      url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -81,12 +74,47 @@ jobs:
         if: github.event_name != 'pull_request'
         with:
           path: dist
+
+  # Tags every tested commit on main with the next patch version (vX.Y.Z).
+  # Scheduled runs get the existing tag of main and deploy fresh data.
+  version:
+    name: Version tag
+    needs: [test, build]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: version-tag
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: tag
+        run: python3 .github/scripts/release.py tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  deploy:
+    # Only commits that got a version tag: a re-run of an older run deploys nothing.
+    needs: [build, version]
+    if: needs.version.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      actions: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
       - id: pages
-        if: github.event_name != 'pull_request'
         uses: actions/deploy-pages@v5
 
       - name: Check live site
-        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           live="${{ steps.pages.outputs.page_url }}"
