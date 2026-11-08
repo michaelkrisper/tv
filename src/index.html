@@ -20,6 +20,7 @@ try{document.documentElement.style.setProperty('--pad',(+localStorage.getItem('t
 </script>
 <link rel="preload" href="data/list.json" as="fetch" crossorigin>
 <link rel="preconnect" href="https://wsrv.nl" crossorigin>
+<link rel="preconnect" href="https://files.fairu.app" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -368,7 +369,9 @@ async function renderList() {
   el.innerHTML = ids.length ? ids.map((id, k) => rowHtml(id, items[k], k)).join('') : '<p class="msg">Keine Sender ausgewählt.</p>';
   settleImages(el);
   updateProgress();
+  renderedDay = localIso();
 }
+let renderedDay = null;
 
 function views() {
   const today = localIso();
@@ -393,11 +396,10 @@ async function goView(v) {
   if (!dir) return;
   view = v;
   const el = $('#list');
-  if (reduce.matches || !el.animate) { await render(); scrollTo(0, 0); return; }
-  renderDays();
-  await el.animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-dir * 40}px)`, opacity: 0 }], { duration: 110, easing: 'ease-in' }).finished;
-  await renderList();
+  // No fade-out first: the new list is drawn at once, only the slide-in animates.
+  await render();
   scrollTo(0, 0);
+  if (reduce.matches || !el.animate || view !== v) return;
   el.animate([{ transform: `translateX(${dir * 40}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 170, easing: 'ease-out' });
 }
 
@@ -674,17 +676,25 @@ function prefetch() {
 
 // Progress and "noch x Min" keep updating; in "Jetzt" the next programme moves
 // up when one ends.
-setInterval(() => {
-  if (document.visibilityState !== 'visible' || !list) return;
+function tick() {
   if (view === NOW && [...shown.values()].some((it) => it && it.e <= Date.now())) renderList();
   else updateProgress();
-}, 20000);
+}
+setInterval(() => { if (document.visibilityState === 'visible' && list) tick(); }, 20000);
 
+// "Jetzt" needs today's schedules: load them alongside list.json, not only in
+// the idle prefetch, so tapping "Jetzt" right after the start does not wait.
+for (const id of mine ?? DEFAULT) getSched(localIso(), id);
 refresh().then(() => {
   (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 });
 });
+// Back in the app: rebuild the list only after a day change (labels, views);
+// otherwise only what depends on the time.
 addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && list) { render(); refresh(); }
+  if (document.visibilityState !== 'visible' || !list) return;
+  if (renderedDay !== localIso()) render();
+  else tick();
+  refresh();
 });
 if ('serviceWorker' in navigator) {
   const sw = navigator.serviceWorker;

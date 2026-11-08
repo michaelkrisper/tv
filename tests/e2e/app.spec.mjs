@@ -66,6 +66,16 @@ test.describe('App', () => {
     await expect(detail(page).locator('h2')).toHaveText(title);
   });
 
+  test('returning to the app keeps the list when the day is unchanged', async ({ page }) => {
+    const row = page.locator('#list .row[data-id]').first();
+    await row.evaluate((el) => {
+      el.dataset.keep = '1';
+    });
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange', { bubbles: true })));
+    await page.waitForTimeout(500);
+    await expect(row).toHaveAttribute('data-keep', '1');
+  });
+
   test('detail page: swiping right closes it', async ({ page }) => {
     await page.locator('#list .row[data-id]').first().click();
     await expect(detail(page)).toHaveAttribute('open', '');
