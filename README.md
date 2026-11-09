@@ -78,9 +78,11 @@ thumbnail).
 
 iOS 26 draws a blur over the top of installed web apps. WebKit omits it only
 when an opaque `position: fixed` element spans the full width at the top edge;
-it then fills the status bar with that element's colour. This is re-evaluated
-only when the document scrolls, so the app scrolls it invisibly by 1 px after
-loading.
+it then fills the status bar with that element's colour. The app keeps such a
+strip at the top and lets the document itself scroll, because Safari only
+re-checks the top edge when the document scrolls. If the blur still shows on a
+device, "Abstand oben" in the settings adds space above the list (stored per
+device).
 
 ## Development
 
