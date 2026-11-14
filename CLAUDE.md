@@ -6,6 +6,9 @@ after) for German and Austrian channels. The app is one hand-written HTML file
 script turns the epgshare01 XMLTV feeds into small JSON files and channel logos in
 `dist/`; the Deploy workflow publishes `dist/` to GitHub Pages
 (https://michaelkrisper.github.io/tv/) on every merge and twice daily by cron.
+The own server (https://tv.krisperapps.de/) builds the same way by itself: a systemd
+timer runs `npm run build` on the latest version tag twice a day, and the Deploy
+workflow's "krisperapps.de" job starts that build after a merge.
 
 ## Commands
 
