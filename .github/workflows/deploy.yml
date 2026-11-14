@@ -141,3 +141,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/deploy.yml/enable"
+
+  # The own server builds the guide itself and refreshes the data on its own
+  # timer (https://tv.krisperapps.de/). This only tells it that a new version
+  # exists; the key can do nothing but start that build.
+  server:
+    name: krisperapps.de
+    needs: [build, version]
+    if: needs.version.outputs.version != '' && github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rebuild on the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          echo 'krisperapps.de ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMchrlhQI1OFJ2cEfQosiydiSPg498c/+Mggebk+zVLO' > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy tv@krisperapps.de
