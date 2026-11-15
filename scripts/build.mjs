@@ -386,7 +386,7 @@ async function write(channels, days) {
   // Same version tag the deploy gives this commit; local builds show "dev".
   const html = (await readFile(join(ROOT, 'src', 'index.html'), 'utf8'))
     .replace('<!-- splash -->', await splash())
-    .replace('<!-- version -->', `Version ${process.env.APP_VERSION || 'dev'}`);
+    .replace('<!-- version -->', process.env.APP_VERSION || 'dev');
   await writeFile(join(DIST, 'index.html'), html);
   hash.update(html);
   for (const f of ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable.png']) {

@@ -126,7 +126,7 @@ test.describe('App', () => {
   test('settings show the version at the top', async ({ page }) => {
     await page.locator('#gear').click();
     await expect(page.locator('#ver')).toBeInViewport();
-    await expect(page.locator('#ver')).toHaveText(/^Version (v\d+\.\d+\.\d+|dev)$/);
+    await expect(page.locator('#ver')).toHaveText(/^(v\d+\.\d+\.\d+|dev)$/);
   });
 
   test('theme: light, dark, automatic', async ({ page }) => {
