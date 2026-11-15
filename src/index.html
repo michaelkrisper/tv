@@ -159,6 +159,7 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
 .range input{flex:1;accent-color:var(--acc)}
 .range output{min-width:44px;text-align:right;font-size:.875rem;color:var(--dim)}
 .ver{color:var(--dim);font-size:.8125rem;margin:6px 4px 0}
+.ver a{color:inherit}
 .reset{color:var(--dim);font-size:.875rem;text-decoration:underline;padding:8px 4px}
 /* Loading: placeholder rows in the shape of the list. */
 .sk .th,.sk .t,.sk .m{background:var(--card);border-radius:6px;animation:sk 1s ease-in-out infinite alternate}
@@ -229,7 +230,7 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
 <dialog id="settings" autofocus>
   <div class="bar"><span class="grab"></span><button class="icon" data-close aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Einstellungen</h2><button class="done" data-close>Fertig</button></div>
   <div class="sec">
-    <p class="ver" id="ver"><!-- version --></p>
+    <p class="ver"><span id="ver"><!-- version --></span> · <a href="https://krisperapps.de/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="https://krisperapps.de/datenschutz#tv" target="_blank" rel="noopener">Datenschutz</a> · <a href="https://krisperapps.de/nutzung" target="_blank" rel="noopener">Nutzung</a></p>
     <h3>Darstellung</h3>
     <div class="seg" id="theme" role="radiogroup" aria-label="Darstellung"><button role="radio" data-v="auto">Automatisch</button><button role="radio" data-v="light">Hell</button><button role="radio" data-v="dark">Dunkel</button></div>
     <h3>Abstand oben</h3>
