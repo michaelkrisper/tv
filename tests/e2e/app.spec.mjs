@@ -127,6 +127,10 @@ test.describe('App', () => {
     await page.locator('#gear').click();
     await expect(page.locator('#ver')).toBeInViewport();
     await expect(page.locator('#ver')).toHaveText(/^(v\d+\.\d+\.\d+|dev)$/);
+    const legal = page.locator('.ver a');
+    await expect(legal).toHaveText(['Impressum', 'Datenschutz', 'Nutzung']);
+    await expect(legal.nth(1)).toHaveAttribute('href', 'https://krisperapps.de/datenschutz#tv');
+    for (const a of await legal.all()) await expect(a).toHaveAttribute('target', '_blank');
   });
 
   test('theme: light, dark, automatic', async ({ page }) => {
