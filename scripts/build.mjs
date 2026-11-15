@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import sharp from 'sharp';
+import { createDb } from './db.mjs';
 import {
   enrich,
   hhmm,
@@ -26,6 +27,8 @@ import {
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
 const CACHE = join(ROOT, '.cache');
+// Not inside dist/: the database is read by the API service, never served as a file.
+const DB = process.env.TV_DB || join(ROOT, '.db', 'tv.db');
 const TZ = 'Europe/Vienna';
 const HOUR = 20;
 const MINUTE = 15;
@@ -274,8 +277,8 @@ const detail = (p) => ({
 // The full schedule per channel and day, times in minutes from 00:00.
 // Images as source URLs; the app loads and downsizes them live. The details
 // sit next to it in <id>.x.json (same order) and load only on tap, because
-// the list is read every time "Jetzt" opens.
-async function writeSchedules(channels, ids, days, thisYear) {
+// the list is read every time "Jetzt" opens. The database gets the same rows.
+async function writeSchedules(channels, ids, days, thisYear, db) {
   for (const d of days) {
     await mkdir(join(DIST, 'data', d.date), { recursive: true });
     for (const id of ids) {
@@ -297,6 +300,9 @@ async function writeSchedules(channels, ids, days, thisYear) {
       const x = sorted.map(detail);
       await writeFile(join(DIST, 'data', d.date, `${id}.json`), JSON.stringify(out));
       await writeFile(join(DIST, 'data', d.date, `${id}.x.json`), JSON.stringify(x));
+      out.forEach((row, k) => {
+        db.sched(d.date, id, row, x[k]);
+      });
     }
   }
 }
@@ -352,7 +358,8 @@ async function write(channels, days) {
   };
   await mkdir(join(DIST, 'data'), { recursive: true });
   const thisYear = Number(days[0].date.slice(0, 4));
-  for (const { date } of days) {
+  const db = createDb(DB, list, days);
+  for (const { date, from } of days) {
     const items = {};
     await mkdir(join(DIST, 'data', date), { recursive: true });
     for (const id of ids) {
@@ -373,12 +380,14 @@ async function write(channels, days) {
       ];
       // Details per channel: the app loads them only on tap.
       await writeFile(join(DIST, 'data', date, `${id}.d.json`), JSON.stringify(detail(p)));
+      db.item(date, id, Math.round((p.stop - from) / 60000), items[id], detail(p));
     }
     list.items[date] = items;
   }
   await writeFile(join(DIST, 'data', 'list.json'), JSON.stringify(list));
 
-  await writeSchedules(channels, ids, days, thisYear);
+  await writeSchedules(channels, ids, days, thisYear, db);
+  db.close();
 
   // Version from the shell, not the data; otherwise every device would refetch
   // the whole shell after every data build.

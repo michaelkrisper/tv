@@ -1,0 +1,47 @@
+# /etc/systemd/system/tv-api.service
+[Unit]
+Description=tv programme API (read-only, tv.krisperapps.de/api/)
+After=network.target
+
+[Service]
+# No account of its own: the service only reads two world-readable files.
+DynamicUser=yes
+Environment=TV_DB=/srv/apps/tv/tv.db PORT=8811 NODE_ENV=production
+ExecStart=/usr/bin/node /srv/apps/tv/api.mjs
+Restart=on-failure
+RestartSec=2
+MemoryMax=256M
+
+# Sandbox: read-only file system, loopback only (Caddy is the only client).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+RemoveIPC=yes
+UMask=0077
+TasksMax=64
+InaccessiblePaths=-/etc/caddy -/var/lib/caddy -/srv/www -/srv/build -/root
+
+[Install]
+WantedBy=multi-user.target

@@ -37,9 +37,9 @@ and tapping work without a network:
 | First start (24 default channels, gzip)  |             |
 | ---------------------------------------- | ----------- |
 | Page, programme list, channel logos      | ~90 KB      |
-| Daily schedules and all detail texts     | ~415 KB     |
+| Schedules and detail texts (2 requests)  | ~80 KB      |
 | Thumbnails for all days and "Jetzt"      | ~680 KB     |
-| **Total**                                | **~1.2 MB** |
+| **Total**                                | **~850 KB** |
 
 After that only the large images of an opened detail page are loaded (~30 KB).
 The service worker serves everything from cache immediately and refreshes in
@@ -48,9 +48,8 @@ test ensures that the first start stays below 2 MB.
 
 ## How it works
 
-There is no backend and no database, only static files. A build script runs
-on the server after every merge and daily at 18:00 and shortly after midnight
-(Vienna time). It
+A build script runs on the server after every merge and daily at 18:00 and
+shortly after midnight (Vienna time). It
 
 1. downloads the XMLTV programme data for Germany and Austria from
    [epgshare01](https://epgshare01.online/) (about 60 MB each, uncompressed),
@@ -60,13 +59,29 @@ on the server after every merge and daily at 18:00 and shortly after midnight
    "Danach"),
 4. fetches the channel logos from [tv-logo/tv-logos](https://github.com/tv-logo/tv-logos)
    (transparent on the image; near-black logos get a light glow),
-5. writes everything to the folder the web server serves.
+5. writes everything to the folder the web server serves and into one SQLite
+   file for the API.
+
+A small read-only service ([`server/api.mjs`](server/api.mjs), `node:http` and
+`node:sqlite`, no dependencies) answers with exactly what the selected channels
+need: one request for the lists, a second one while idle for the texts. The
+answers are compressed and carry `ETag` and `Cache-Control`; nothing about a
+request is stored. Without the service the app reads the static files below,
+so it also runs on plain static hosting. Server setup: [`deploy/`](deploy/).
 
 The app loads thumbnails live: fairu resizes on its own, everything else is
 downsized and cropped to 16:9 by [wsrv.nl](https://wsrv.nl/) (WebP, ~8 KB per
 thumbnail).
 
-### Data files
+### API
+
+| Request                          | Content                                                        | Loaded      |
+| -------------------------------- | -------------------------------------------------------------- | ----------- |
+| `api/start?ch=<ids>`             | channel list, 20:15 programmes and today's schedule from the current hour for these channels (~12 KB) | on start |
+| `api/details?ch=<ids>`           | texts of the 20:15 programmes, their "Danach", texts for the next three hours (~65 KB) | when idle |
+| `api/day?ch=<id>&date=<date>`    | one channel's whole day with texts (~15 KB)                    | on tap      |
+
+### Data files (fallback without the API)
 
 | File                            | Content                                              | Loaded              |
 | ------------------------------- | ---------------------------------------------------- | ------------------- |
@@ -102,10 +117,11 @@ npm run test:e2e                  # browser tests against dist/
 
 - **Unit** (`tests/*.test.mjs`, `node:test`): XMLTV parsing, time zones and
   daylight saving time, channel names and their capitalisation, merging the
-  feeds
+  feeds; the API's queries, input validation, compression and 304 answers
 - **Browser** (`tests/e2e/`, Playwright, Chromium with a phone viewport): days
   and swiping, detail page with "Danach", back via button and gesture, theme,
-  iOS status bar strip, no JavaScript errors, transfer size under 2 MB
+  iOS status bar strip, no JavaScript errors, transfer size under 2 MB, the
+  programme in two requests, the fallback to the static files
 
 ### Deployment
 
@@ -128,8 +144,11 @@ they are merged automatically once all checks pass.
 ```
 src/                the app as served (index.html, sw.js, manifest, icons)
 scripts/epg.mjs     XMLTV parsing and selection (no network, tested)
-scripts/build.mjs   fetch feeds, trim logos, write dist/
-scripts/serve.mjs   local server for dist/
+scripts/build.mjs   fetch feeds, trim logos, write dist/ and the database
+scripts/db.mjs      the SQLite file for the API
+scripts/serve.mjs   local server for dist/ and the API
+server/api.mjs      read-only programme API (node:http, node:sqlite)
+deploy/             systemd units, Caddy site and build script of the server
 tests/              unit tests (node:test)
 tests/e2e/          browser tests (Playwright)
 ```

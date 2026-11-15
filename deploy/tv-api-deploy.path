@@ -1,0 +1,9 @@
+# /etc/systemd/system/tv-api-deploy.path
+[Unit]
+Description=Restart the tv API when the build installed a new version of it
+
+[Path]
+PathChanged=/srv/apps/tv/.version
+
+[Install]
+WantedBy=multi-user.target

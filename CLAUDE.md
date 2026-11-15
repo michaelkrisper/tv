@@ -18,7 +18,7 @@ npm run lint                      # Biome format + lint check (npm run lint:fix 
 npm test                          # node:test unit tests (tests/*.test.mjs), offline
 npm run check                     # lint + unit tests = ci.yml
 npm run build                     # downloads both feeds (~60 MB each), writes dist/
-npm run serve                     # serves dist/ with gzip like the live site, PORT (default 8080)
+npm run serve                     # serves dist/ with gzip like the live site and /api/, PORT (default 8080)
 npx playwright install chromium   # once
 npm run test:e2e                  # Playwright against dist/ (port 8081); build first
 ```
@@ -49,24 +49,37 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   keys), per day and channel `<id>.json` (schedule), `<id>.d.json` (20:15 details),
   `<id>.x.json` (schedule details). The array layout in `write()` and its reader in
   `src/index.html` must change together.
+- The same rows also go into one SQLite file (`scripts/db.mjs`, `node:sqlite`; `.db/tv.db`
+  or `TV_DB`, never inside `dist/`), replaced atomically. `server/api.mjs` reads it: a
+  dependency-free `node:http` service, one file because the server runs a copy.
+  `api/start?ch=` = everything the lists need for the selected channels (20:15 items,
+  today's rows from the current hour), `api/details?ch=` = the texts, fetched once while
+  idle, `api/day?ch=&date=` = one whole day on tap. Answers depend only on build, hour and
+  query, hence the ETag without a query. `FORMAT` in both files must change together.
+- The client tries the API first and reads the static files when it does not answer
+  (`list.q` is set only on an API list). Keep the static files while installed apps with
+  an older client may exist and as the fallback. Server files and install steps: `deploy/`.
 - Thumbnails are not built: the app loads them live from fairu (`?width=`) or wsrv.nl
   (resize/crop to WebP). Both send CORS headers, so the service worker caches them.
 - `src/sw.js`: precached shell (cache `tv-shell-<version>`), cache-first images (capped),
-  stale-while-revalidate data with a change notice. The build replaces `__VERSION__`
-  with a hash over the shell files only, not the data, so data builds do not force
-  every device to refetch the shell. Installed apps check for a new worker themselves
-  and reload once.
+  stale-while-revalidate data with a change notice; of `api/start` and `api/details` only
+  the latest answer is kept and used offline for any channel selection. The build
+  replaces `__VERSION__` with a hash over the shell files only, not the data, so data
+  builds do not force every device to refetch the shell. Installed apps check for a new
+  worker themselves and reload once.
 - Times are always computed in `Europe/Vienna`; the server's timer rebuilds at 18:00
   and after midnight (00:30) so the third day exists.
 
 ## Conventions
 
-- Biome only covers `src/sw.js`, `scripts/`, `tests/`, root `*.mjs`/`*.json`.
+- Biome only covers `src/sw.js`, `scripts/`, `server/`, `tests/`, root `*.mjs`/`*.json`.
   `src/index.html` is not linted: keep its compact style (dense one-line CSS rules,
   short names) and check it by running the E2E tests.
 - UI text German; code, comments, identifiers, commit messages English.
 - Dev dependencies only (Biome, Playwright, sharp). No runtime dependencies, no
   framework, no bundler for the app: that was an explicit decision for load speed.
+- The API is public: validate every parameter (`parseIds`, `parseQuery`), keep answers
+  bounded, set no cookies, log nothing about requests.
 
 ## Rules and pitfalls
 
