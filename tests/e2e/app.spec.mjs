@@ -280,6 +280,8 @@ test.describe('iOS home screen app', () => {
 // Until the API service is installed, and whenever it is down, the app reads
 // the static files.
 test.describe('Without the API', () => {
+  // Without the service worker: its own requests would bypass the routes below.
+  test.use({ serviceWorkers: 'block' });
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/**', (r) => r.fulfill({ status: 404, body: '' }));
   });
@@ -303,6 +305,23 @@ test.describe('Without the API', () => {
       await page.goBack();
       await expect(detail(page)).not.toHaveAttribute('open', '');
     }
+  });
+
+  test('the next start does not wait for the API, and uses it once it is there', async ({ page }) => {
+    await page.goto('./');
+    await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
+    // The API hangs: the list must come from the static files anyway.
+    await page.unroute('**/api/**');
+    await page.route('**/api/**', () => {});
+    await page.reload();
+    await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
+    // The API answers: found while idle, the texts then come from it.
+    await page.unroute('**/api/**');
+    const details = page.waitForRequest((r) => r.url().includes('api/details?'));
+    await page.reload();
+    await details;
+    await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('tv.api'))).toBeNull();
   });
 });
 

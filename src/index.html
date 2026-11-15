@@ -282,8 +282,10 @@ const schedX = new Map();
 // schedule rows.
 const dayData = new Map();
 const pre = { d: new Map(), n: new Map(), x: new Map() };
-let api = true; // false once the API turned out to be missing: static files then
-// Remembered for the next start only to preload list.json; the API is tried again every time.
+// false once the API turned out to be missing: static files then. Remembered,
+// so the next start does not wait for it again; it only looks for it while idle.
+let api = true;
+try { api = localStorage.getItem('tv.api') !== '0'; } catch {}
 function noApi(missing) {
   api = !missing;
   try { missing ? localStorage.setItem('tv.api', '0') : localStorage.removeItem('tv.api'); } catch {}
@@ -1030,6 +1032,7 @@ refresh().then(() => {
   // so they do not compete with list.json and the visible logos.
   // With the API they came with the list.
   if (list && !list.q && !navigator.connection?.saveData) for (const id of myChannels()) getSched(localIso(), id);
+  if (!api) idle(() => fetch(`api/start?${chQuery()}`).then((r) => { if (r.ok) { noApi(false); refresh(); } }).catch(() => {}));
   idle(prefetch);
 });
 // Back in the app: rebuild the list only after a day change (labels, views);
