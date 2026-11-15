@@ -5,12 +5,12 @@
 [![Version](https://img.shields.io/github/v/tag/michaelkrisper/tv?sort=semver&label=version)](https://github.com/michaelkrisper/tv/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js 26](https://img.shields.io/badge/node-26-339933?logo=node.js&logoColor=white)](.nvmrc)
-[![Live demo](https://img.shields.io/badge/demo-michaelkrisper.github.io%2Ftv-2ea44f)](https://michaelkrisper.github.io/tv/)
+[![Live demo](https://img.shields.io/badge/demo-tv.krisperapps.de-2ea44f)](https://tv.krisperapps.de/)
 
 What is on right now, and what is on at 20:15 (prime time)? All TV channels of
 Germany and Austria at a glance, as a fast, installable web app.
 
-**Live demo: [michaelkrisper.github.io/tv](https://michaelkrisper.github.io/tv/)**
+**Live demo: [tv.krisperapps.de](https://tv.krisperapps.de/)**
 
 The user interface is in German.
 
@@ -48,8 +48,9 @@ test ensures that the first start stays below 2 MB.
 
 ## How it works
 
-There is no server and no database. A GitHub Action runs on every push and
-daily at 18:00 and shortly after midnight (Vienna time). It
+There is no backend and no database, only static files. A build script runs
+on the server after every merge and daily at 18:00 and shortly after midnight
+(Vienna time). It
 
 1. downloads the XMLTV programme data for Germany and Austria from
    [epgshare01](https://epgshare01.online/) (about 60 MB each, uncompressed),
@@ -59,7 +60,7 @@ daily at 18:00 and shortly after midnight (Vienna time). It
    "Danach"),
 4. fetches the channel logos from [tv-logo/tv-logos](https://github.com/tv-logo/tv-logos)
    (transparent on the image; near-black logos get a light glow),
-5. tests the app in a browser and deploys everything to GitHub Pages.
+5. writes everything to the folder the web server serves.
 
 The app loads thumbnails live: fairu resizes on its own, everything else is
 downsized and cropped to 16:9 by [wsrv.nl](https://wsrv.nl/) (WebP, ~8 KB per
@@ -91,7 +92,7 @@ Requirement: Node.js 26 (see [`.nvmrc`](.nvmrc)).
 ```sh
 npm ci
 npm run build                     # fetch data and write dist/ (~10 s)
-npm run serve                     # http://localhost:8080 (gzip like GitHub Pages)
+npm run serve                     # http://localhost:8080 (gzip like the live site)
 npm run check                     # lint (Biome) and unit tests
 npx playwright install chromium   # once
 npm run test:e2e                  # browser tests against dist/
@@ -111,8 +112,9 @@ npm run test:e2e                  # browser tests against dist/
 [`ci.yml`](.github/workflows/ci.yml) runs lint (Biome, including the format
 check) and unit tests on every push and pull request to `main`.
 [`deploy.yml`](.github/workflows/deploy.yml) calls the same CI workflow first
-and only then builds, runs the browser tests, deploys to GitHub Pages and
-checks the live site. If any step fails, the previous version stays online.
+and only then builds, runs the browser tests, tells the server
+(<https://tv.krisperapps.de/>) to build the new version and checks the live
+site. If any step fails, the previous version stays online.
 Pull requests run the same checks without deploying. Every tested commit on
 `main` is tagged with the next patch version and only tagged commits are
 deployed; bundled releases with release notes come from the Release workflow

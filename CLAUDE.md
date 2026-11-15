@@ -4,11 +4,9 @@ Installable web app: what is on TV right now and at 20:15 (today, tomorrow, the 
 after) for German and Austrian channels. The app is one hand-written HTML file
 (`src/index.html`, vanilla JS + inline CSS, no framework, no app build). A Node build
 script turns the epgshare01 XMLTV feeds into small JSON files and channel logos in
-`dist/`; the Deploy workflow publishes `dist/` to GitHub Pages
-(https://michaelkrisper.github.io/tv/) on every merge and twice daily by cron.
-The own server (https://tv.krisperapps.de/) builds the same way by itself: a systemd
-timer runs `npm run build` on the latest version tag twice a day, and the Deploy
-workflow's "krisperapps.de" job starts that build after a merge.
+`dist/`. The own server (https://tv.krisperapps.de/) builds and serves it by itself: a
+systemd timer runs `npm run build` on the latest version tag twice a day, and the
+Deploy workflow's "krisperapps.de" job starts that build after a merge.
 
 ## Commands
 
@@ -20,13 +18,14 @@ npm run lint                      # Biome format + lint check (npm run lint:fix 
 npm test                          # node:test unit tests (tests/*.test.mjs), offline
 npm run check                     # lint + unit tests = ci.yml
 npm run build                     # downloads both feeds (~60 MB each), writes dist/
-npm run serve                     # serves dist/ with gzip like Pages, PORT (default 8080)
+npm run serve                     # serves dist/ with gzip like the live site, PORT (default 8080)
 npx playwright install chromium   # once
 npm run test:e2e                  # Playwright against dist/ (port 8081); build first
 ```
 
-- `ci.yml` = lint + unit tests. `deploy.yml` calls `ci.yml`, then build, Playwright,
-  version tag, Pages deploy and a curl check of the live site.
+- `ci.yml` = lint + unit tests. `deploy.yml` calls `ci.yml`, then build (as a check,
+  not published), Playwright, version tag, the server trigger and a curl check of the
+  live site.
 - The build fails on purpose with fewer than 20 channels for today (broken source):
   nothing is deployed and the previous version stays online.
 - E2E uses the real data of the last build and asserts behaviour, never specific
@@ -57,8 +56,8 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   with a hash over the shell files only, not the data, so data builds do not force
   every device to refetch the shell. Installed apps check for a new worker themselves
   and reload once.
-- Times are always computed in `Europe/Vienna`; cron in `deploy.yml` is UTC (18:00
-  CEST = 16:00 UTC, plus a run after midnight so the third day exists).
+- Times are always computed in `Europe/Vienna`; the server's timer rebuilds at 18:00
+  and after midnight (00:30) so the third day exists.
 
 ## Conventions
 
@@ -82,8 +81,6 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   the bottom bar is positioned with `100vh` there. Keep that media query.
 - The epgshare01 feeds have no CORS headers, so all EPG processing must stay in the
   build, never in the browser.
-- Scheduled workflows in public repos stop after 60 days without commits; the deploy
-  job re-enables `deploy.yml` on scheduled runs. Keep that step.
 - Programme texts and images belong to their owners: never commit built data or
   downloaded images (`dist/`, `.cache/` are gitignored).
 
@@ -94,6 +91,6 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
 - PRs auto-merge (squash) once CI and the "Linked ticket" check pass; drafts are not merged.
 - Versions exist only as git tags `vX.Y.Z`. Every merge to `main` tags the next patch;
   never edit version numbers in files. Minor/major releases: Actions -> Release.
-- Merging to `main` deploys to GitHub Pages automatically (Deploy workflow; scheduled
-  runs redeploy fresh data under the existing tag).
+- Merging to `main` deploys to https://tv.krisperapps.de/ automatically (Deploy
+  workflow); the server's timer rebuilds fresh data under the existing tag.
 - Details: CONTRIBUTING.md.
