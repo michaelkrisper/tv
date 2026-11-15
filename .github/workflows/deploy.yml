@@ -1,29 +1,23 @@
 name: Deploy
 
 # Runs the CI workflow (lint, unit tests) first; only then builds the
-# programme data from the EPG, tests the app in the browser and deploys
-# everything to GitHub Pages. Any failing step stops the deploy. Runs on every
-# push to main and twice daily: each day adds a new day, and short-notice
-# changes for the evening are usually known by 18:00.
-# Pull requests are only built and tested, never deployed. Every tested commit
-# on main gets the next patch version tag; only tagged commits are deployed.
+# programme data from the EPG and tests the app in the browser. Every tested
+# commit on main gets the next patch version tag, and the own server
+# (https://tv.krisperapps.de/) is told to build that version. Any failing step
+# stops the deploy. Pull requests are only built and tested, never deployed.
+# Fresh programme data twice a day comes from the server's own timer.
 
 on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    # Cron is UTC only: 18:00 CEST, 17:00 CET in winter.
-    - cron: '0 16 * * *'
-    # After midnight (01:30 CEST / 00:30 CET), otherwise the third day is missing until 18:00.
-    - cron: '30 23 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && github.ref || 'pages' }}
+  group: ${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
   cancel-in-progress: false
 
 jobs:
@@ -61,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           APP_VERSION: ${{ steps.version.outputs.version }}
 
-      # Browser tests against the finished build before it is deployed.
+      # Browser tests against the finished build before the version is tagged.
       - id: playwright
         run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v6
@@ -77,13 +71,7 @@ jobs:
           path: test-results/
           retention-days: 7
 
-      - uses: actions/upload-pages-artifact@v5
-        if: github.event_name != 'pull_request'
-        with:
-          path: dist
-
   # Tags every tested commit on main with the next patch version (vX.Y.Z).
-  # Scheduled runs get the existing tag of main and deploy fresh data.
   version:
     name: Version tag
     needs: [test, build]
@@ -105,50 +93,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-  deploy:
-    # Only commits that got a version tag: a re-run of an older run deploys nothing.
-    needs: [build, version]
-    if: needs.version.outputs.version != ''
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-      actions: write
-    environment:
-      name: github-pages
-      url: ${{ steps.pages.outputs.page_url }}
-    steps:
-      - id: pages
-        uses: actions/deploy-pages@v5
-
-      - name: Check live site
-        run: |
-          set -euo pipefail
-          live="${{ steps.pages.outputs.page_url }}"
-          for f in "" data/list.json sw.js manifest.webmanifest; do
-            for attempt in 1 2 3 4 5; do
-              code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$live$f" || echo 000)"
-              [ "$code" = 200 ] && break
-              sleep 5
-            done
-            echo "/$f -> $code"
-            [ "$code" = 200 ] || { echo "::error::/$f responded with $code"; exit 1; }
-          done
-
-      # GitHub disables scheduled workflows in public repos after 60 days
-      # without a commit. Re-enabling resets the timer.
-      - if: github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/deploy.yml/enable"
-
   # The own server builds the guide itself and refreshes the data on its own
   # timer (https://tv.krisperapps.de/). This only tells it that a new version
   # exists; the key can do nothing but start that build.
+  # Only commits that got a version tag: a re-run of an older run deploys nothing.
   server:
     name: krisperapps.de
     needs: [build, version]
-    if: needs.version.outputs.version != '' && github.event_name != 'schedule'
+    if: needs.version.outputs.version != ''
     runs-on: ubuntu-latest
     steps:
       - name: Rebuild on the server
@@ -160,3 +112,17 @@ jobs:
           chmod 600 ~/.ssh/deploy
           echo 'krisperapps.de ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMchrlhQI1OFJ2cEfQosiydiSPg498c/+Mggebk+zVLO' > ~/.ssh/known_hosts
           ssh -i ~/.ssh/deploy tv@krisperapps.de
+
+      - name: Check live site
+        run: |
+          set -euo pipefail
+          live="https://tv.krisperapps.de/"
+          for f in "" data/list.json sw.js manifest.webmanifest; do
+            for attempt in 1 2 3 4 5; do
+              code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$live$f" || echo 000)"
+              [ "$code" = 200 ] && break
+              sleep 5
+            done
+            echo "/$f -> $code"
+            [ "$code" = 200 ] || { echo "::error::/$f responded with $code"; exit 1; }
+          done

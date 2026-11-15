@@ -1,12 +1,12 @@
-// GitHub Pages does not allow custom cache headers (fixed max-age=600), so the
-// service worker handles caching itself:
+// The service worker handles caching itself, independent of the cache headers
+// of the host:
 //   shell   precached, always from cache; new version = new worker
 //   images  names are hashes or stable resize-service URLs: cache first
 //   data    served from cache immediately, refreshed in the background; notify on change
 
 const VERSION = '__VERSION__';
-// All apps on michaelkrisper.github.io share one cache storage, so the shell
-// cache carries the app's prefix and cleanup only touches tv-shell- caches.
+// Apps on one origin share one cache storage, so the shell cache carries the
+// app's prefix and cleanup only touches tv-shell- caches.
 const SHELL = `tv-shell-${VERSION}`;
 const DATA = 'data';
 const IMG = 'img';

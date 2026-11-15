@@ -1,4 +1,4 @@
-// Serves dist/ locally with gzip like GitHub Pages, so transfer sizes match
+// Serves dist/ locally with gzip like the live site, so transfer sizes match
 // in tests too. Port via PORT, default 8080.
 
 import { readFile } from 'node:fs/promises';
