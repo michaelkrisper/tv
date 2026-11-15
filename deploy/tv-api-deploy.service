@@ -1,0 +1,7 @@
+# /etc/systemd/system/tv-api-deploy.service
+[Unit]
+Description=Restart the tv API on its new version
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl try-restart tv-api.service

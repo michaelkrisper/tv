@@ -20,8 +20,9 @@ applyTheme();matchMedia('(prefers-color-scheme: light)').addEventListener('chang
 {const u=navigator.userAgent,o=/iP(hone|ad|od)/.test(u)||navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1?'ios':/Android/.test(u)?'android':'';if(o)document.documentElement.dataset.os=o}
 // Extra top inset, adjustable per device (iOS blur under the status bar).
 try{document.documentElement.style.setProperty('--pad',(+localStorage.getItem('tv.top')||0)+'px')}catch{}
+// Devices that found no API last time read list.json again: fetch it early.
+try{if(localStorage.getItem('tv.api')==='0')document.write('<link rel="preload" href="data/list.json" as="fetch" crossorigin>')}catch{}
 </script>
-<link rel="preload" href="data/list.json" as="fetch" crossorigin>
 <link rel="preconnect" href="https://wsrv.nl" crossorigin>
 <link rel="preconnect" href="https://files.fairu.app" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
@@ -276,6 +277,17 @@ let renderedDay = null; // day of the last list render, to notice a day change
 const details = new Map();
 const scheds = new Map();
 const schedX = new Map();
+// With the API (list.q is set): whole days loaded on tap, and what the details
+// bundle brought ahead: texts of the 20:15 items, their "Danach" rows, texts of
+// schedule rows.
+const dayData = new Map();
+const pre = { d: new Map(), n: new Map(), x: new Map() };
+let api = true; // false once the API turned out to be missing: static files then
+// Remembered for the next start only to preload list.json; the API is tried again every time.
+function noApi(missing) {
+  api = !missing;
+  try { missing ? localStorage.setItem('tv.api', '0') : localStorage.removeItem('tv.api'); } catch {}
+}
 
 function loadMine() {
   try { const v = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(v)) return v; } catch {}
@@ -340,12 +352,12 @@ function item2015(date, id) {
   return {
     id, title, genre, year, rating, s, e, start, stop,
     th: live(src, 320), hero: live(src, 960), live: true,
-    x: () => getDetails(date, id),
-    next: () => getSched(date, id).then((progs) => {
-      const base = at(date, '00:00');
-      const j = progs.findIndex((p) => base + p[0] * 6e4 >= e);
-      return j < 0 ? [] : progs.slice(j, j + 3).map((q, k) => schedItem(date, id, progs, j + k));
-    }),
+    x: () => {
+      if (pre.d.has(`${date}/${id}`)) return Promise.resolve(pre.d.get(`${date}/${id}`));
+      const min = mins(at(date, '00:00'), s);
+      return list.q ? rowText(date, id, (p) => p[0] <= min && min < p[1]) : getDetails(date, id);
+    },
+    next: () => pre.n.get(`${date}/${id}`)?.map((p) => schedItem(date, id, p)) ?? after(date, id, mins(at(date, '00:00'), e)),
   };
 }
 
@@ -356,27 +368,48 @@ function getJson(cache, url, fallback) {
 const getDetails = (date, id) => getJson(details, `data/${date}/${id}.d.json`, {});
 const getSched = (date, id) => getJson(scheds, `data/${date}/${id}.json`, []);
 const getSchedX = (date, id) => getJson(schedX, `data/${date}/${id}.x.json`, []);
+// A whole day of one channel, rows and their texts in the same order: one API
+// request, or the two static files.
+const getDay = (date, id) => getJson(dayData, `api/day?ch=${encodeURIComponent(id)}&date=${date}`, { rows: [], x: [] });
+const dayRows = (date, id) => (list.q ? getDay(date, id).then((r) => r.rows) : getSched(date, id));
+const dayX = (date, id) => (list.q ? getDay(date, id).then((r) => r.x) : getSchedX(date, id));
+const rowText = (date, id, find) => Promise.all([dayRows(date, id), dayX(date, id)]).then(([rows, x]) => x[rows.findIndex(find)] || {});
 
-// Schedule of one day: times are minutes from 00:00 of that day.
-function schedItem(date, id, progs, j) {
-  const p = progs[j];
+// "Danach": the three programmes that start at minute `from` or later. The
+// start bundle has today's rows from the current hour on; if that does not
+// reach back far enough, or for another day, the whole day is loaded.
+async function after(date, id, from) {
+  let rows = list.q && date === list.sdate && list.sched[id];
+  if (!rows?.length || rows[0][0] > from) rows = await dayRows(date, id);
+  const j = rows.findIndex((p) => p[0] >= from);
+  return j < 0 ? [] : rows.slice(j, j + 3).map((p) => schedItem(date, id, p));
+}
+
+// One schedule row: times are minutes from 00:00 of that day.
+function schedItem(date, id, p) {
   const base = at(date, '00:00');
   const s = base + p[0] * 6e4;
   const e = base + p[1] * 6e4;
   return {
     id, title: p[2], genre: p[3], year: p[5], rating: p[6], s, e, start: hm(s), stop: hm(e),
     th: live(p[4], 320), hero: live(p[4], 960), sm: live(p[4], 160), live: true,
-    x: () => getSchedX(date, id).then((x) => x[j] || {}),
+    x: () => {
+      const x = pre.x.get(`${date}/${id}/${p[0]}`);
+      return x ? Promise.resolve(x) : rowText(date, id, (q) => q[0] === p[0]);
+    },
     // built only on open: every programme has its own "Danach"
-    next: () => progs.slice(j + 1, j + 4).map((q, k) => schedItem(date, id, progs, j + 1 + k)),
+    next: () => after(date, id, p[0] + 1),
   };
 }
 
 function itemNow(date, id, progs, t = Date.now()) {
   const base = at(date, '00:00');
-  const i = progs.findIndex((p) => base + p[0] * 6e4 <= t && t < base + p[1] * 6e4);
-  return i < 0 ? null : schedItem(date, id, progs, i);
+  const p = progs.find((p) => base + p[0] * 6e4 <= t && t < base + p[1] * 6e4);
+  return p ? schedItem(date, id, p) : null;
 }
+// What runs now: with the API from the start bundle (its day runs until 06:00,
+// so it also holds after midnight), else from today's static file.
+const nowItem = (id) => (list.q ? Promise.resolve(itemNow(list.sdate, id, list.sched[id] || [])) : getSched(localIso(), id).then((progs) => itemNow(localIso(), id, progs)));
 
 // ---- List ----------------------------------------------------------------------
 const mins = (a, b) => Math.round((b - a) / 6e4);
@@ -424,10 +457,8 @@ async function renderList() {
   const ids = myChannels();
   let items;
   if (view === NOW) {
-    const today = localIso();
-    const all = await Promise.all(ids.map((id) => getSched(today, id)));
+    items = await Promise.all(ids.map(nowItem));
     if (token !== renderToken) return;
-    items = ids.map((id, k) => itemNow(today, id, all[k]));
   } else {
     items = ids.map((id) => item2015(view, id));
   }
@@ -510,15 +541,30 @@ onSwipe($('#list'), (dir) => {
   if (next) goView(next);
 });
 
+// Sorted, so reordering the channels does not change the request.
+const chQuery = () => `ch=${encodeURIComponent([...(mine ?? DEFAULT)].sort().join(','))}`;
+
+// One request with everything the lists need for the selected channels. If
+// the API does not answer, the static files do: list.json here, the rest per
+// channel as needed (a list without q).
 async function getList() {
+  const q = chQuery();
+  if (api) {
+    try {
+      const res = await fetch(`api/start?${q}`);
+      if (res.ok) { noApi(false); return { ...(await res.json()), q }; }
+      if (res.status === 404) noApi(true);
+    } catch {}
+  }
   const res = await fetch('data/list.json');
   if (!res.ok) throw new Error(res.status);
   return res.json();
 }
 
 function applyList(l) {
-  if (list && l.built === list.built) return;
+  if (list && l.built === list.built && l.q === list.q && l.sdate === list.sdate) return;
   list = l;
+  if (l.q) idle(loadDetails);
   names = new Map(l.channels.map((c) => [c[0], c[1]]));
   logos = new Map(l.channels.filter((c) => c[2]).map((c) => [c[0], c[2]]));
   if (!mine) mine = DEFAULT.filter((id) => names.has(id));
@@ -686,7 +732,8 @@ onSwipe(dlg, (dir) => { if (dir < 0) history.back(); });
 for (const d of document.querySelectorAll('dialog')) {
   d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) history.back(); });
   d.addEventListener('cancel', (e) => { e.preventDefault(); history.back(); });
-  d.addEventListener('close', () => { if (d.id === 'settings') renderList(); });
+  // Other channels need another start bundle.
+  d.addEventListener('close', () => { if (d.id === 'settings') { renderList(); if (list?.q && list.q !== chQuery()) refresh(); } });
 }
 
 $('#list').addEventListener('click', (e) => {
@@ -930,23 +977,43 @@ async function refresh() {
   }
 }
 
+const idle = (fn) => (window.requestIdleCallback || setTimeout)(fn, { timeout: 3000 });
+
+// With the API, one more request while idle brings the texts for the selected
+// channels: the 20:15 items of all days with their "Danach", and today's
+// programmes of the next hours. Everything else loads on tap.
+async function loadDetails() {
+  const q = list?.q;
+  if (!q || navigator.connection?.saveData) return;
+  try {
+    const res = await fetch(`api/details?${q}`);
+    if (!res.ok) return;
+    const r = await res.json();
+    for (const k of ['d', 'n']) for (const [date, m] of Object.entries(r[k])) for (const [id, v] of Object.entries(m)) pre[k].set(`${date}/${id}`, v);
+    for (const [id, m] of Object.entries(r.x)) for (const [start, x] of Object.entries(m)) pre.x.set(`${r.sdate}/${id}/${start}`, x);
+  } catch {}
+}
+
 // Prefetch what the selected channels need while idle (under 2 MB in total):
-// first the small data (details, schedules for "Danach" and "Jetzt"), then the
-// thumbnails for all days and for "Jetzt". After that, switching and tapping
-// work offline; only the large images load on open.
+// without the API first the small data (details, schedules for "Danach" and
+// "Jetzt") file by file, then the thumbnails for all days and for "Jetzt".
+// After that, switching and tapping work offline; only the large images load
+// on open.
 function prefetch() {
   if (!list || navigator.connection?.saveData) return;
   const today = localIso();
   const ids = myChannels();
   const seen = new Set();
   const img = (url) => { if (url && !seen.has(url)) { seen.add(url); fetch(url, { mode: 'cors', priority: 'low' }).catch(() => {}); } };
-  for (const d of list.days) for (const id of ids) {
-    if (list.items[d]?.[id]) getDetails(d, id);
-    if (d !== today) getSched(d, id);
+  if (!list.q) {
+    for (const d of list.days) for (const id of ids) {
+      if (list.items[d]?.[id]) getDetails(d, id);
+      if (d !== today) getSched(d, id);
+    }
+    for (const id of ids) getSchedX(today, id);
   }
-  for (const id of ids) getSchedX(today, id);
   for (const d of list.days) for (const id of ids) img(live(list.items[d]?.[id]?.[5], 320));
-  for (const id of ids) getSched(today, id).then((progs) => img(itemNow(today, id, progs)?.th));
+  for (const id of ids) nowItem(id).then((it) => img(it?.th));
 }
 
 // Progress and "noch x Min" keep updating; in "Jetzt" the next programme moves
@@ -961,8 +1028,9 @@ refresh().then(() => {
   // "Jetzt" needs today's schedules: load them right after the first paint, not
   // only in the idle prefetch, so tapping "Jetzt" does not wait. After the list,
   // so they do not compete with list.json and the visible logos.
-  if (list && !navigator.connection?.saveData) for (const id of myChannels()) getSched(localIso(), id);
-  (window.requestIdleCallback || setTimeout)(prefetch, { timeout: 3000 });
+  // With the API they came with the list.
+  if (list && !list.q && !navigator.connection?.saveData) for (const id of myChannels()) getSched(localIso(), id);
+  idle(prefetch);
 });
 // Back in the app: rebuild the list only after a day change (labels, views);
 // otherwise only what depends on the time.

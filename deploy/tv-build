@@ -1,0 +1,27 @@
+#!/bin/sh
+# Builds the TV guide from the latest version tag and publishes it.
+# Started by tv-build.timer and, after a merge, by the GitHub deploy job.
+set -eu
+cd /srv/build/tv
+exec 9>.lock
+flock 9
+[ -d repo ] || git clone -q https://github.com/michaelkrisper/tv.git repo
+cd repo
+git fetch -q --tags --prune origin main
+tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' origin/main)
+git checkout -q --detach "$tag"
+if ! cmp -s package-lock.json ../lock.installed; then
+	npm ci --no-audit --no-fund --loglevel=error
+	cp package-lock.json ../lock.installed
+fi
+# The build replaces the database of the API service in one step.
+APP_VERSION="$tag" TV_DB=/srv/apps/tv/tv.db npm run --silent build
+# The service runs a copy of its one file; tv-api-deploy.path restarts it
+# when .version is written, which happens only if the code changed.
+if ! cmp -s server/api.mjs /srv/apps/tv/api.mjs; then
+	cp server/api.mjs /srv/apps/tv/api.mjs.new
+	mv /srv/apps/tv/api.mjs.new /srv/apps/tv/api.mjs
+	echo "$tag" > /srv/apps/tv/.version
+fi
+rsync -rt --delete --delay-updates dist/ /srv/www/tv/
+echo "published $tag"

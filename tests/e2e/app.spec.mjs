@@ -200,7 +200,7 @@ test.describe('Android', () => {
   });
 
   test('pull to refresh reloads the programme', async ({ page }) => {
-    const req = page.waitForRequest((r) => r.url().endsWith('data/list.json'));
+    const req = page.waitForRequest((r) => r.url().includes('api/start?'));
     await drag(page, '#list', [
       [200, 200],
       [200, 260],
@@ -277,6 +277,35 @@ test.describe('iOS home screen app', () => {
   });
 });
 
+// Until the API service is installed, and whenever it is down, the app reads
+// the static files.
+test.describe('Without the API', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/**', (r) => r.fulfill({ status: 404, body: '' }));
+  });
+
+  test('lists, details and "Danach" come from the static files', async ({ page }) => {
+    const list = page.waitForRequest((r) => r.url().endsWith('data/list.json'));
+    await page.goto('./');
+    await list;
+    for (const i of [0, 1]) {
+      await tab(page, i).click();
+      const row = page.locator('#list .row[data-id]').first();
+      const title = await row.locator('.t').textContent();
+      await row.click();
+      await expect(detail(page).locator('h2')).toHaveText(title);
+      const next = detail(page).locator('.next li').first();
+      await expect(next).toBeVisible();
+      const nextTitle = await next.locator('span').textContent();
+      await next.click();
+      await expect(detail(page).locator('h2')).toHaveText(nextTitle);
+      await page.goBack();
+      await page.goBack();
+      await expect(detail(page)).not.toHaveAttribute('open', '');
+    }
+  });
+});
+
 test.describe('Transfer size', () => {
   // Without the service worker so every request is visible here. The worker
   // only additionally precaches the shell (~15 KB).
@@ -285,6 +314,11 @@ test.describe('Transfer size', () => {
   test('first start including prefetch stays under 2 MB', async ({ page }) => {
     let bytes = 0;
     let done = 0;
+    const data = [];
+    page.on('request', (r) => {
+      const m = /^http.*\/(api\/\w+|data\/)/.exec(r.url().split('?')[0]);
+      if (m) data.push(m[1]);
+    });
     page.on('requestfinished', async (r) => {
       const s = await r.sizes().catch(() => null);
       if (s) bytes += s.responseBodySize + s.responseHeadersSize;
@@ -299,6 +333,8 @@ test.describe('Transfer size', () => {
       await page.waitForTimeout(4000);
     }
     console.info(`First start: ${Math.round(bytes / 1024)} KB in ${done} requests`);
+    // The programme comes in two requests: the lists, then the texts while idle.
+    expect(data).toEqual(['api/start', 'api/details']);
     expect(bytes).toBeLessThan(2 * 1024 * 1024);
   });
 });
