@@ -2,8 +2,8 @@
 // of the host:
 //   shell   precached, always from cache; new version = new worker
 //   images  names are hashes or stable resize-service URLs: cache first
-//   data    served from cache immediately, refreshed in the background; notify on change
-//   api     the same; offline the last answer is used even for another channel selection
+//   api     served from cache immediately, refreshed in the background; notify on change;
+//           offline the last answer is used even for another channel selection
 
 const VERSION = '__VERSION__';
 // Apps on one origin share one cache storage, so the shell cache carries the
@@ -58,33 +58,14 @@ async function notify(what) {
   for (const c of await self.clients.matchAll()) c.postMessage(what);
 }
 
-// Remove day files from yesterday and older.
+// Remove days from yesterday and older, and the static files older apps read.
 async function purge(cache) {
   const d = new Date(Date.now() - 864e5);
   const cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   for (const k of await cache.keys()) {
-    const m = /(?:data\/|date=)(\d{4}-\d\d-\d\d)/.exec(k.url);
-    if (m && m[1] < cutoff) cache.delete(k);
+    const m = /date=(\d{4}-\d\d-\d\d)/.exec(k.url);
+    if ((m && m[1] < cutoff) || new URL(k.url).pathname.includes('/data/')) cache.delete(k);
   }
-}
-
-async function data(req, e) {
-  const cache = await caches.open(DATA);
-  if (Math.random() < 0.05) e.waitUntil(purge(cache));
-  const hit = await cache.match(req);
-  const fresh = fetch(req, { cache: 'no-cache' }).then(async (res) => {
-    if (res.ok) {
-      const changed = hit && hit.headers.get('etag') !== res.headers.get('etag');
-      await cache.put(req, res.clone());
-      if (changed) await notify(req.url.endsWith('list.json') ? 'list' : 'data');
-    }
-    return res;
-  });
-  if (hit) {
-    e.waitUntil(fresh.catch(() => {}));
-    return hit;
-  }
-  return fresh;
 }
 
 const samePath = (keys, path) => keys.filter((k) => new URL(k.url).pathname === path);
@@ -138,7 +119,6 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== location.origin) return;
   const path = url.pathname.slice(new URL(self.registration.scope).pathname.length);
   if (path.startsWith('img/')) e.respondWith(image(req));
-  else if (path.startsWith('data/')) e.respondWith(data(req, e));
   else if (path.startsWith('api/')) e.respondWith(api(req, e));
   else if (req.mode === 'navigate') e.respondWith(shell(new Request('./')).catch(() => fetch(req)));
   else e.respondWith(shell(req));

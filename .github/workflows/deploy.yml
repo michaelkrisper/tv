@@ -117,7 +117,7 @@ jobs:
         run: |
           set -euo pipefail
           live="https://tv.krisperapps.de/"
-          for f in "" data/list.json sw.js manifest.webmanifest; do
+          for f in "" "api/start?ch=orf1" sw.js manifest.webmanifest; do
             for attempt in 1 2 3 4 5; do
               code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$live$f" || echo 000)"
               [ "$code" = 200 ] && break

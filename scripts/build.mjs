@@ -275,12 +275,10 @@ const detail = (p) => ({
 });
 
 // The full schedule per channel and day, times in minutes from 00:00.
-// Images as source URLs; the app loads and downsizes them live. The details
-// sit next to it in <id>.x.json (same order) and load only on tap, because
-// the list is read every time "Jetzt" opens. The database gets the same rows.
-async function writeSchedules(channels, ids, days, thisYear, db) {
+// Images as source URLs; the app loads and downsizes them live. Every row
+// goes into the database with its details.
+function writeSchedules(channels, ids, days, thisYear, db) {
   for (const d of days) {
-    await mkdir(join(DIST, 'data', d.date), { recursive: true });
     for (const id of ids) {
       const progs = channels.get(id).sched.get(d.date);
       if (!progs) continue;
@@ -298,8 +296,6 @@ async function writeSchedules(channels, ids, days, thisYear, db) {
         p.rating,
       ]);
       const x = sorted.map(detail);
-      await writeFile(join(DIST, 'data', d.date, `${id}.json`), JSON.stringify(out));
-      await writeFile(join(DIST, 'data', d.date, `${id}.x.json`), JSON.stringify(x));
       out.forEach((row, k) => {
         db.sched(d.date, id, row, x[k]);
       });
@@ -350,26 +346,24 @@ async function write(channels, days) {
   const ids = [...channels.keys()].sort((a, b) =>
     channels.get(a).name.localeCompare(channels.get(b).name, 'de'),
   );
-  const list = {
-    built: Date.now(),
-    days: days.map((d) => d.date),
-    channels: ids.map((id) => [id, channels.get(id).name, channels.get(id).logo ?? '']),
-    items: {},
-  };
-  await mkdir(join(DIST, 'data'), { recursive: true });
   const thisYear = Number(days[0].date.slice(0, 4));
-  const db = createDb(DB, list, days);
+  const db = createDb(
+    DB,
+    {
+      built: Date.now(),
+      channels: ids.map((id) => [id, channels.get(id).name, channels.get(id).logo ?? '']),
+    },
+    days,
+  );
   for (const { date, from } of days) {
-    const items = {};
-    await mkdir(join(DIST, 'data', date), { recursive: true });
     for (const id of ids) {
       const p = channels.get(id).days.get(date);
       if (!p) continue;
       // For current shows the year is just noise; for films (with a cast)
       // it stays, even if it is the current year.
       const year = p.year === thisYear && !p.actors.length ? null : p.year;
-      // Short keys: the list is read on every start.
-      items[id] = [
+      // Positional: the API sends these rows as they are on every start.
+      const row = [
         p.title,
         hhmm(p.start, TZ),
         hhmm(p.stop, TZ),
@@ -378,15 +372,10 @@ async function write(channels, days) {
         p.img.replace(/^https:\/\//, ''),
         p.rating,
       ];
-      // Details per channel: the app loads them only on tap.
-      await writeFile(join(DIST, 'data', date, `${id}.d.json`), JSON.stringify(detail(p)));
-      db.item(date, id, Math.round((p.stop - from) / 60000), items[id], detail(p));
+      db.item(date, id, Math.round((p.stop - from) / 60000), row, detail(p));
     }
-    list.items[date] = items;
   }
-  await writeFile(join(DIST, 'data', 'list.json'), JSON.stringify(list));
-
-  await writeSchedules(channels, ids, days, thisYear, db);
+  writeSchedules(channels, ids, days, thisYear, db);
   db.close();
 
   // Version from the shell, not the data; otherwise every device would refetch
