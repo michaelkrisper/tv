@@ -1,6 +1,6 @@
 // Writes the programme into one SQLite file for the read-only API
-// (server/api.mjs). The rows hold the same JSON as the static data files, so
-// both paths deliver the same format. The file is replaced atomically: the
+// (server/api.mjs). The rows hold JSON the API sends as it is. The file is
+// replaced atomically: the
 // service keeps reading the previous one until the new one is complete.
 
 import { mkdirSync, renameSync, rmSync } from 'node:fs';

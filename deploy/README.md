@@ -1,8 +1,7 @@
 # Server setup for the programme API
 
-The app works without any of this: while `/api/` does not answer, it reads the
-static files in `data/`. These files switch on the API, which answers a start
-of the app in two requests instead of about 170.
+The app loads its programme only from the API: without it, it shows an error
+message. These files install it.
 
 | File                    | Installed as                                         |
 | ----------------------- | ---------------------------------------------------- |
@@ -46,7 +45,8 @@ The last command must answer `200` with `content-encoding`, `etag` and
 
 ## Undo
 
-Put the previous `tv.caddy` back (without the `handle /api/*` block, with
-`header` and `file_server` directly in the site) and reload Caddy: the app
-reads the static files again. Then `systemctl disable --now tv-api.service
-tv-api-deploy.path`.
+The build no longer writes static programme files, so the API cannot be
+switched off without going back to a version before #38 (tag it, then run
+`tv-build`). After that: put the previous `tv.caddy` back (without the
+`handle /api/*` block, with `header` and `file_server` directly in the site),
+reload Caddy and `systemctl disable --now tv-api.service tv-api-deploy.path`.

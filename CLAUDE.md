@@ -3,8 +3,8 @@
 Installable web app: what is on TV right now and at 20:15 (today, tomorrow, the day
 after) for German and Austrian channels. The app is one hand-written HTML file
 (`src/index.html`, vanilla JS + inline CSS, no framework, no app build). A Node build
-script turns the epgshare01 XMLTV feeds into small JSON files and channel logos in
-`dist/`. The own server (https://tv.krisperapps.de/) builds and serves it by itself: a
+script turns the epgshare01 XMLTV feeds into one SQLite file for the API and channel
+logos in `dist/`. The own server (https://tv.krisperapps.de/) builds and serves it by itself: a
 systemd timer runs `npm run build` on the latest version tag twice a day, and the
 Deploy workflow's "krisperapps.de" job starts that build after a merge.
 
@@ -45,24 +45,21 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   precached. Copying `src/index.html` to `dist/` for quick E2E runs drops them.
 - Platform variants: the head script sets `html[data-os=ios|android]` (desktop: none);
   CSS and JS branch on it for tap feedback, transitions, settings sheet, haptics.
-- Output: `data/list.json` (channels + 20:15 items as positional arrays with short
-  keys), per day and channel `<id>.json` (schedule), `<id>.d.json` (20:15 details),
-  `<id>.x.json` (schedule details). The array layout in `write()` and its reader in
-  `src/index.html` must change together.
-- The same rows also go into one SQLite file (`scripts/db.mjs`, `node:sqlite`; `.db/tv.db`
+- Output: the programme goes into one SQLite file (`scripts/db.mjs`, `node:sqlite`; `.db/tv.db`
   or `TV_DB`, never inside `dist/`), replaced atomically. `server/api.mjs` reads it: a
   dependency-free `node:http` service, one file because the server runs a copy.
   `api/start?ch=` = everything the lists need for the selected channels (20:15 items,
   today's rows from the current hour), `api/details?ch=` = the texts, fetched once while
   idle, `api/day?ch=&date=` = one whole day on tap. Answers depend only on build, hour and
   query, hence the ETag without a query. `FORMAT` in both files must change together.
-- The client tries the API first and reads the static files when it does not answer
-  (`list.q` is set only on an API list). Keep the static files while installed apps with
-  an older client may exist and as the fallback. Server files and install steps: `deploy/`.
+  Rows are positional arrays: the layout in `write()`/`writeSchedules()` and its reader
+  in `src/index.html` must change together.
+- The client reads only the API (no static fallback since #38); when it fails, the list
+  shows an error. Server files and install steps: `deploy/`.
 - Thumbnails are not built: the app loads them live from fairu (`?width=`) or wsrv.nl
   (resize/crop to WebP). Both send CORS headers, so the service worker caches them.
 - `src/sw.js`: precached shell (cache `tv-shell-<version>`), cache-first images (capped),
-  stale-while-revalidate data with a change notice; of `api/start` and `api/details` only
+  stale-while-revalidate API answers with a change notice; of `api/start` and `api/details` only
   the latest answer is kept and used offline for any channel selection. The build
   replaces `__VERSION__` with a hash over the shell files only, not the data, so data
   builds do not force every device to refetch the shell. Installed apps check for a new

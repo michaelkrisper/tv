@@ -59,15 +59,15 @@ shortly after midnight (Vienna time). It
    "Danach"),
 4. fetches the channel logos from [tv-logo/tv-logos](https://github.com/tv-logo/tv-logos)
    (transparent on the image; near-black logos get a light glow),
-5. writes everything to the folder the web server serves and into one SQLite
-   file for the API.
+5. writes the app and the logos to the folder the web server serves, and the
+   programme into one SQLite file for the API.
 
 A small read-only service ([`server/api.mjs`](server/api.mjs), `node:http` and
 `node:sqlite`, no dependencies) answers with exactly what the selected channels
 need: one request for the lists, a second one while idle for the texts. The
 answers are compressed and carry `ETag` and `Cache-Control`; nothing about a
-request is stored. Without the service the app reads the static files below,
-so it also runs on plain static hosting. Server setup: [`deploy/`](deploy/).
+request is stored. The app needs the service; it does not run on plain static
+hosting. Server setup: [`deploy/`](deploy/).
 
 The app loads thumbnails live: fairu resizes on its own, everything else is
 downsized and cropped to 16:9 by [wsrv.nl](https://wsrv.nl/) (WebP, ~8 KB per
@@ -80,15 +80,6 @@ thumbnail).
 | `api/start?ch=<ids>`             | channel list, 20:15 programmes and today's schedule from the current hour for these channels (~12 KB) | on start |
 | `api/details?ch=<ids>`           | texts of the 20:15 programmes, their "Danach", texts for the next three hours (~65 KB) | when idle |
 | `api/day?ch=<id>&date=<date>`    | one channel's whole day with texts (~15 KB)                    | on tap      |
-
-### Data files (fallback without the API)
-
-| File                            | Content                                              | Loaded              |
-| ------------------------------- | ---------------------------------------------------- | ------------------- |
-| `data/list.json`                | all channels and their 20:15 programmes (~26 KB gzip) | on start            |
-| `data/<date>/<channel>.d.json`  | details of the 20:15 programme (~1 KB)               | when idle           |
-| `data/<date>/<channel>.json`    | daily schedule in minutes from 00:00 (~1 KB)          | when idle           |
-| `data/<date>/<channel>.x.json`  | details for the daily schedule (~10 KB)              | when idle (today)   |
 
 ### iPhone status bar
 
@@ -121,7 +112,7 @@ npm run test:e2e                  # browser tests against dist/
 - **Browser** (`tests/e2e/`, Playwright, Chromium with a phone viewport): days
   and swiping, detail page with "Danach", back via button and gesture, theme,
   iOS status bar strip, no JavaScript errors, transfer size under 2 MB, the
-  programme in two requests, the fallback to the static files
+  programme in two requests, a message when the API fails
 
 ### Deployment
 
