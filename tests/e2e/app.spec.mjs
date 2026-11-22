@@ -288,6 +288,23 @@ test.describe('Without the API', () => {
   });
 });
 
+test.describe('Thumbnails', () => {
+  // Without the service worker: its requests would bypass the route below.
+  test.use({ serviceWorkers: 'block' });
+
+  test('the 20:15 list takes them from the own server', async ({ page }) => {
+    await page.goto('./');
+    await expect(page.locator('#list img.th.ok[src^="img/t/"]').first()).toBeVisible();
+  });
+
+  test('a missing one falls back to the live image', async ({ page }) => {
+    await page.route('**/img/t/**', (r) => r.fulfill({ status: 404, body: '' }));
+    await page.goto('./');
+    await expect(page.locator('#list img.th.ok[src^="https://"]').first()).toBeVisible();
+    await expect(page.locator('#list img.th[data-fb]:not([loading])')).toHaveCount(0);
+  });
+});
+
 test.describe('Start from the last answer', () => {
   // Without the service worker: its cache would answer for the API as well.
   test.use({ serviceWorkers: 'block' });

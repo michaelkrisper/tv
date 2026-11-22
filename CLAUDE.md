@@ -58,8 +58,13 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   shows an error. The last `api/start` answer is also kept in `localStorage` (`tv.start`)
   and drawn synchronously on start, before the request, if it is for the same channels
   and still has today. Server files and install steps: `deploy/`.
-- Thumbnails are not built: the app loads them live from fairu (`?width=`) or wsrv.nl
-  (resize/crop to WebP). Both send CORS headers, so the service worker caches them.
+- Thumbnails of the 20:15 programmes are built: `thumbs()` fetches a small version
+  through fairu/wsrv.nl, writes AVIF to `dist/img/t/` and caches it in `.cache/thumb`.
+  The file name is the source URL (`thumbName()` in `scripts/epg.mjs` and `thumb()` in
+  `src/index.html` must change together); a missing file falls back to the live image.
+  All other images (schedule rows, large detail images) load live from fairu
+  (`?width=`) or wsrv.nl (resize/crop to WebP). Both send CORS headers, so the service
+  worker caches them.
 - `src/sw.js`: precached shell (cache `tv-shell-<version>`), cache-first images (capped),
   stale-while-revalidate API answers with a change notice; of `api/start` and `api/details` only
   the latest answer is kept and used offline for any channel selection. The build

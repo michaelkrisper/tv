@@ -21,8 +21,6 @@ applyTheme();matchMedia('(prefers-color-scheme: light)').addEventListener('chang
 // Extra top inset, adjustable per device (iOS blur under the status bar).
 try{document.documentElement.style.setProperty('--pad',(+localStorage.getItem('tv.top')||0)+'px')}catch{}
 </script>
-<link rel="preconnect" href="https://wsrv.nl" crossorigin>
-<link rel="preconnect" href="https://files.fairu.app" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -266,6 +264,16 @@ function live(src, w) {
   return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${w}&h=${h}&fit=cover&a=attention&output=webp&q=65`;
 }
 
+// The 20:15 thumbnails are built ahead and come from the own server, named
+// after the source like thumbName() in scripts/epg.mjs. If one is missing (or
+// the browser cannot show AVIF), the image falls back to the live one.
+const noThumb = new Set();
+function thumb(src) {
+  if (!src) return '';
+  const n = src.replace(/[^A-Za-z0-9]+/g, '-');
+  return n.length > 150 || noThumb.has(src) ? live(src, 320) : `img/t/${n}.avif`;
+}
+
 let list = null;
 let view = null; // NOW or a date (20:15 view)
 let names = new Map();
@@ -341,7 +349,7 @@ function item2015(date, id) {
   if (e <= s) e += 864e5;
   return {
     id, title, genre, year, rating, s, e, start, stop,
-    th: live(src, 320), hero: live(src, 960), live: true,
+    get th() { return thumb(src); }, fb: src, hero: live(src, 960), live: true,
     x: () => {
       if (pre.d.has(`${date}/${id}`)) return Promise.resolve(pre.d.get(`${date}/${id}`));
       const min = mins(at(date, '00:00'), s);
@@ -413,7 +421,8 @@ function rowHtml(id, it, i) {
   if (!it) return `<div class="row none"><div class="tw"><div class="th"></div>${mark}</div><div><span class="t">Keine Daten</span></div></div>`;
   const prio = i < 6 ? 'fetchpriority="high"' : 'loading="lazy"';
   const cors = it.live ? ' crossorigin="anonymous"' : '';
-  const th = it.th ? `<img class="th" src="${it.th}" ${prio}${cors} decoding="async" width="320" height="180" alt="">` : '<div class="th"></div>';
+  const fb = it.fb && it.th.startsWith('img/') ? ` data-fb="${esc(it.fb)}"` : '';
+  const th = it.th ? `<img class="th" src="${it.th}"${fb} ${prio}${cors} decoding="async" width="320" height="180" alt="">` : '<div class="th"></div>';
   const scrim = logos.get(id) === 'w' ? ' sc' : '';
   return `<button class="row" data-id="${id}"><div class="tw${scrim}">${th}${mark}</div>${progressBar(it)}`
     + `<div><span class="t">${esc(it.title)}</span><span class="m ml"><span>${it.genre ? genreChip(it.genre) : ''}</span><span class="tr">${rightText(it)}</span></span></div></button>`;
@@ -436,6 +445,13 @@ function settleImages(root) {
   for (const im of root.querySelectorAll('img.th,img.hero')) if (im.complete && im.naturalWidth) im.classList.add('ok');
 }
 document.addEventListener('load', (e) => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
+document.addEventListener('error', (e) => {
+  const src = e.target.dataset?.fb;
+  if (!src) return;
+  delete e.target.dataset.fb;
+  noThumb.add(src);
+  e.target.src = live(src, 320);
+}, true);
 
 let renderToken = 0;
 async function renderList() {
@@ -991,7 +1007,7 @@ function prefetch() {
   if (!list || navigator.connection?.saveData) return;
   const ids = myChannels();
   const urls = new Set();
-  for (const d of list.days) for (const id of ids) urls.add(live(list.items[d]?.[id]?.[5], 320));
+  for (const d of list.days) for (const id of ids) urls.add(thumb(list.items[d]?.[id]?.[5]));
   for (const id of ids) urls.add(itemNow(list.sdate, id, list.sched[id] || [])?.th);
   const todo = [...urls].filter(Boolean);
   // A few per idle slice: every request costs main-thread time, even when the

@@ -12,6 +12,7 @@ import {
   prettyName,
   programmes,
   slug,
+  thumbName,
   titleKey,
   zonedToEpoch,
 } from '../scripts/epg.mjs';
@@ -33,6 +34,12 @@ test('20:15 Vienna in summer and winter time', () => {
   // Month overflow, as build.mjs uses it for "today + i"
   assert.equal(isoDate(zonedToEpoch(2026, 9, 31, 20, 15, TZ), TZ), '2026-10-01');
   assert.equal(hhmm(Date.UTC(2026, 8, 30, 18, 15), TZ), '20:15');
+});
+
+test('thumbName turns a source URL into a file name', () => {
+  assert.equal(thumbName('img.example.de/a1/29/x_y.jpeg?w=1'), 'img-example-de-a1-29-x-y-jpeg-w-1.avif');
+  assert.equal(thumbName(''), '');
+  assert.equal(thumbName(`example.de/${'a'.repeat(150)}`), '');
 });
 
 test('slug normalises channel names', () => {
