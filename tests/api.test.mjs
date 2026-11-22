@@ -195,8 +195,16 @@ test('http: compression, 304, methods, and a new database is picked up', async (
     assert.equal(plain.headers.get('content-encoding'), null);
     await plain.arrayBuffer();
 
+    // a repeated request gets the kept answer, the same in any channel order
+    const two = (q) => fetch(`${base}/api/start?ch=${q}`).then((r) => r.text());
+    assert.equal(await two('orf1,arte'), await two('arte,orf1'));
+    assert.notEqual(await two('orf1'), await two('arte'));
+
     now = at(13);
-    assert.equal((await again({ 'accept-encoding': 'br', 'if-none-match': etag })).status, 200);
+    const later = await again({ 'accept-encoding': 'br', 'if-none-match': etag });
+    assert.equal(later.status, 200);
+    assert.notEqual(later.headers.get('etag'), etag);
+    await later.arrayBuffer();
 
     const head = await fetch(`${base}/api/start?ch=orf1`, { method: 'HEAD' });
     assert.equal(head.status, 200);
