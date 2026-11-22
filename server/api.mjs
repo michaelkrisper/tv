@@ -27,6 +27,8 @@ const HOUR = 3600_000;
 // Texts for programmes that start within this many hours; later ones load on tap.
 const DETAIL_HOURS = 3;
 const NEXT = 3;
+// Compressed answers kept in memory; the API is public, so the number is capped.
+const MAX_CACHED = 200;
 
 // "a,b,c" -> sorted unique ids, or null if anything about it is off.
 export function parseIds(value, max = MAX_CHANNELS) {
@@ -134,9 +136,11 @@ export function openStore(file) {
       ]);
     },
 
+    hasDay: (id, date) => known.has(id) && dates.includes(date),
+
     // null: unknown channel or a day that is not in the database
     day(id, date) {
-      if (!known.has(id) || !dates.includes(date)) return null;
+      if (!this.hasDay(id, date)) return null;
       const rows = q.day.all(date, id);
       return obj([
         ['rows', arr(rows.map((r) => r.row))],
@@ -153,7 +157,8 @@ const ROUTES = {
   '/api/day': { names: ['ch', 'date'], hourly: false, maxAge: 300 },
 };
 
-// -> { status, body?, etag?, maxAge? }; body is built lazily, so a 304 costs no query.
+// -> { status, key?, body?, etag?, maxAge? }; key is the query in its canonical
+// form; body is built lazily, so a 304 or a cached answer costs no query.
 export function route(store, url, now) {
   if (url.length > MAX_URL) return { status: 414 };
   if (!URL.canParse(url, 'http://localhost')) return { status: 400 };
@@ -168,11 +173,11 @@ export function route(store, url, now) {
   if (pathname === '/api/start') body = () => store.start(ids, now);
   else if (pathname === '/api/details') body = () => store.details(ids, now);
   else {
-    const day = store.day(ids[0], query.date);
-    if (day === null) return { status: 404 };
-    body = () => day;
+    if (!store.hasDay(ids[0], query.date)) return { status: 404 };
+    body = () => store.day(ids[0], query.date);
   }
-  return { status: 200, etag, maxAge: r.maxAge, body };
+  const key = `${pathname}?${ids.join(',')}${query.date ? `&${query.date}` : ''}`;
+  return { status: 200, key, etag, maxAge: r.maxAge, body };
 }
 
 const ERRORS = { 400: 'bad request', 404: 'not found', 405: 'method not allowed', 414: 'uri too long' };
@@ -213,6 +218,19 @@ export function createHandler(dbFile, clock = Date.now) {
     return store;
   }
 
+  // Answers only change with the build and the hour (both in the ETag), so the
+  // compressed body is kept per query and encoding; least recently used go first.
+  const cached = new Map();
+  function bodyOf(r, enc) {
+    const key = `${enc}:${r.key}`;
+    let hit = cached.get(key);
+    if (hit?.etag !== r.etag) hit = { etag: r.etag, body: compress(Buffer.from(r.body()), enc) };
+    cached.delete(key);
+    cached.set(key, hit);
+    if (cached.size > MAX_CACHED) cached.delete(cached.keys().next().value);
+    return hit.body;
+  }
+
   const fail = (res, status, headers = {}) =>
     res
       .writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...headers })
@@ -228,7 +246,7 @@ export function createHandler(dbFile, clock = Date.now) {
       vary: 'Accept-Encoding',
     };
     if (matches(req.headers['if-none-match'], headers.etag)) return res.writeHead(304, headers).end();
-    const body = compress(Buffer.from(r.body()), enc);
+    const body = bodyOf(r, enc);
     if (enc) headers['content-encoding'] = enc;
     headers['content-type'] = 'application/json';
     headers['content-length'] = body.length;
