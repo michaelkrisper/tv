@@ -69,7 +69,9 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   stale-while-revalidate API answers with a change notice; of `api/start` and `api/details` only
   the latest answer is kept and used offline for any channel selection. The build
   replaces `__VERSION__` with a hash over the shell files only, not the data, so data
-  builds do not force every device to refetch the shell. Installed apps check for a new
+  builds do not force every device to refetch the shell. The build also only writes the
+  shell into `dist/` when its sources or the version changed (mark in `.cache/shell`);
+  data runs refresh the database and `dist/img/`. Installed apps check for a new
   worker themselves and reload once.
 - Times are always computed in `Europe/Vienna`; the server's timer rebuilds at 18:00
   and after midnight (00:30) so the third day exists.
