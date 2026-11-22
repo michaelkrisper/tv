@@ -1,5 +1,6 @@
 // Fetches the XMLTV feeds, extracts the 20:15 programme and the daily schedule
-// for "Jetzt" for every channel, fetches the channel logos and writes dist/.
+// for "Jetzt" for every channel, fetches the channel logos and writes the
+// database and dist/img/. The app shell in dist/ is only written when it changed.
 //
 // It also prepares the thumbnails of the 20:15 programmes as AVIF; all other
 // images the app loads live through the resize services (fairu itself,
@@ -437,30 +438,52 @@ async function write(channels, days) {
   }
   writeSchedules(channels, ids, days, thisYear, db);
   db.close();
+}
 
-  // Version from the shell, not the data; otherwise every device would refetch
-  // the whole shell after every data build.
+const SHELL = ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable.png'];
+
+// The shell (page, worker, icons, launch images) only depends on the code and
+// the version: a data build leaves it alone while .cache/shell says it is
+// current.
+async function shell() {
+  const version = process.env.APP_VERSION || 'dev';
+  const stamp = createHash('sha1').update(version);
+  for (const f of ['scripts/build.mjs', 'src/index.html', 'src/sw.js', ...SHELL.map((f) => `src/${f}`)]) {
+    stamp.update(await readFile(join(ROOT, f)));
+  }
+  const id = stamp.digest('hex');
+  const mark = join(CACHE, 'shell');
+  const have = await readFile(mark, 'utf8').catch(() => '');
+  if (have === id && (await exists(join(DIST, 'index.html')))) return false;
+  await rm(mark, { force: true });
+  for (const f of await readdir(DIST)) if (f !== 'img') await rm(join(DIST, f), { recursive: true });
+
+  // Worker version from the shell, not the data; otherwise every device would
+  // refetch the whole shell after every data build.
   const hash = createHash('sha1');
   // Same version tag the deploy gives this commit; local builds show "dev".
   const html = (await readFile(join(ROOT, 'src', 'index.html'), 'utf8'))
     .replace('<!-- splash -->', await splash())
-    .replace('<!-- version -->', process.env.APP_VERSION || 'dev');
+    .replace('<!-- version -->', version);
   await writeFile(join(DIST, 'index.html'), html);
   hash.update(html);
-  for (const f of ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable.png']) {
+  for (const f of SHELL) {
     await cp(join(ROOT, 'src', f), join(DIST, f));
     hash.update(await readFile(join(ROOT, 'src', f)));
   }
   const sw = await readFile(join(ROOT, 'src', 'sw.js'), 'utf8');
-  const version = hash.update(sw).digest('hex').slice(0, 10);
-  await writeFile(join(DIST, 'sw.js'), sw.replace('__VERSION__', version));
-  await writeFile(join(DIST, '.nojekyll'), '');
+  await writeFile(join(DIST, 'sw.js'), sw.replace('__VERSION__', hash.update(sw).digest('hex').slice(0, 10)));
+  await mkdir(CACHE, { recursive: true });
+  await writeFile(mark, id);
+  return true;
 }
 
 async function main() {
   const now = Date.now();
   const days = targets(now);
-  await rm(DIST, { recursive: true, force: true });
+  // Everything in dist/img/ comes from the data and is written again.
+  await rm(join(DIST, 'img'), { recursive: true, force: true });
+  await mkdir(DIST, { recursive: true });
   const feeds = [];
   for (const f of FEEDS) {
     const t = performance.now();
@@ -473,6 +496,7 @@ async function main() {
   await logos(channels);
   await thumbs(channels, days);
   await write(channels, days);
+  console.info(`Shell: ${(await shell()) ? 'written' : 'unchanged'}`);
   const today = days[0].date;
   const n = [...channels.values()].filter((c) => c.days.has(today)).length;
   console.info(`${channels.size} channels, today (${today}) ${n} with a 20:15 programme`);
