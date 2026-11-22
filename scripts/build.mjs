@@ -1,11 +1,12 @@
 // Fetches the XMLTV feeds, extracts the 20:15 programme and the daily schedule
 // for "Jetzt" for every channel, fetches the channel logos and writes dist/.
 //
-// The build does not process thumbnails: the app loads them live through the
-// resize services (fairu itself, otherwise wsrv.nl).
+// It also prepares the thumbnails of the 20:15 programmes as AVIF; all other
+// images the app loads live through the resize services (fairu itself,
+// otherwise wsrv.nl).
 
 import { createHash } from 'node:crypto';
-import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
@@ -21,6 +22,7 @@ import {
   prettyName,
   programmes,
   slug,
+  thumbName,
   zonedToEpoch,
 } from './epg.mjs';
 
@@ -262,6 +264,64 @@ async function logos(channels) {
   console.info(`Logos: ${found} of ${channels.size} channels`);
 }
 
+// ---- Thumbnails ----------------------------------------------------------
+
+const THUMB = { width: 320, height: 180 };
+
+// Never the originals (up to 6 MB each): the same resize services the app
+// uses deliver a small version, which is cropped and encoded here.
+function thumbSource(src) {
+  if (src.startsWith('files.fairu.app')) return `https://${src}?width=480&format=webp&quality=90`;
+  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${THUMB.width}&h=${THUMB.height}&fit=cover&a=attention&output=jpg&q=92`;
+}
+
+// Thumbnails of the 20:15 programmes as dist/img/t/<thumbName>, so the first
+// list comes from the app's own server. Files are kept in .cache/thumb between
+// builds: only new programmes cost requests, the ones no longer in the
+// programme are removed. A missing one is not an error: the app then loads it
+// live, as it does for all other images.
+async function thumbs(channels, days) {
+  const dir = join(CACHE, 'thumb');
+  const out = join(DIST, 'img', 't');
+  await mkdir(dir, { recursive: true });
+  await mkdir(out, { recursive: true });
+  const srcs = new Set();
+  for (const d of days) {
+    for (const ch of channels.values()) {
+      const src = ch.days.get(d.date)?.img.replace(/^https:\/\//, '');
+      if (src && thumbName(src)) srcs.add(src);
+    }
+  }
+  const wanted = new Set([...srcs].map(thumbName));
+  for (const f of await readdir(dir)) if (!wanted.has(f)) await rm(join(dir, f), { force: true });
+  let made = 0;
+  let ready = 0;
+  const failed = new Map();
+  await pool([...srcs], 16, async (src) => {
+    const name = thumbName(src);
+    const file = join(dir, name);
+    try {
+      if (!(await exists(file))) {
+        const res = await fetch(thumbSource(src), { signal: AbortSignal.timeout(20_000) });
+        if (!res.ok) throw new Error(res.status);
+        // effort 2: higher ones take several times as long for the same size
+        await sharp(Buffer.from(await res.arrayBuffer()))
+          .resize({ ...THUMB, fit: 'cover', position: 'attention' })
+          .avif({ quality: 50, effort: 2 })
+          .toFile(file);
+        made++;
+      }
+      await cp(file, join(out, name));
+      ready++;
+    } catch (e) {
+      await rm(file, { force: true });
+      failed.set(e.message, (failed.get(e.message) ?? 0) + 1);
+    }
+  });
+  const why = [...failed].map(([m, n]) => `, ${n} failed: ${m}`).join('');
+  console.info(`Thumbnails: ${ready} of ${srcs.size} (${made} new${why})`);
+}
+
 // ---- Output --------------------------------------------------------------
 
 const detail = (p) => ({
@@ -411,6 +471,7 @@ async function main() {
   const channels = merge(feeds);
   for (const [id, ch] of channels) if (!ch.days.size) channels.delete(id);
   await logos(channels);
+  await thumbs(channels, days);
   await write(channels, days);
   const today = days[0].date;
   const n = [...channels.values()].filter((c) => c.days.has(today)).length;
