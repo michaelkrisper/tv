@@ -4,10 +4,12 @@ Description=tv programme API (read-only, tv.krisperapps.de/api/)
 After=network.target
 
 [Service]
-# No account of its own: the service only reads two world-readable files.
+# No account of its own: the service only reads two world-readable files
+# (its binary and the programme).
 DynamicUser=yes
-Environment=TV_DB=/srv/apps/tv/tv.db PORT=8811 NODE_ENV=production
-ExecStart=/usr/bin/node /srv/apps/tv/api.mjs
+# GOMEMLIMIT: collect garbage well below MemoryMax, also while a new file is loaded.
+Environment=TV_DATA=/srv/apps/tv/tv.tsv PORT=8811 GOMEMLIMIT=128MiB
+ExecStart=/srv/apps/tv/tv-api
 Restart=on-failure
 RestartSec=2
 MemoryMax=256M

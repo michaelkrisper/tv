@@ -14,13 +14,16 @@ if ! cmp -s package-lock.json ../lock.installed; then
 	npm ci --no-audit --no-fund --loglevel=error
 	cp package-lock.json ../lock.installed
 fi
-# The build replaces the database of the API service in one step.
-APP_VERSION="$tag" TV_DB=/srv/apps/tv/tv.db npm run --silent build
-# The service runs a copy of its one file; tv-api-deploy.path restarts it
-# when .version is written, which happens only if the code changed.
-if ! cmp -s server/api.mjs /srv/apps/tv/api.mjs; then
-	cp server/api.mjs /srv/apps/tv/api.mjs.new
-	mv /srv/apps/tv/api.mjs.new /srv/apps/tv/api.mjs
+# The build replaces the programme file of the API service in one step.
+APP_VERSION="$tag" TV_DATA=/srv/apps/tv/tv.tsv npm run --silent build
+# The API is one static binary, compiled here when its source changed.
+# tv-api-deploy.path restarts the service when .version is written.
+src=$(cat server/*.go server/go.mod server/go.sum | sha256sum)
+if [ "$src" != "$(cat ../api.built 2>/dev/null)" ] || [ ! -x /srv/apps/tv/tv-api ]; then
+	export GOCACHE=/srv/build/tv/go/cache GOMODCACHE=/srv/build/tv/go/mod GOPATH=/srv/build/tv/go
+	(cd server && CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-trimpath go build -o /srv/apps/tv/tv-api.new .)
+	mv /srv/apps/tv/tv-api.new /srv/apps/tv/tv-api
+	echo "$src" > ../api.built
 	echo "$tag" > /srv/apps/tv/.version
 fi
 rsync -rt --delete --delay-updates dist/ /srv/www/tv/

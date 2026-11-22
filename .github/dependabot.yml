@@ -1,4 +1,4 @@
-# Weekly updates for actions and npm packages. Minor and patch updates are
+# Weekly updates for actions, npm packages and the Go module of the API. Minor and patch updates are
 # grouped into one pull request per ecosystem; major updates arrive one by one.
 version: 2
 updates:
@@ -19,3 +19,8 @@ updates:
       npm-minor-patch:
         patterns: ['*']
         update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /server
+    schedule:
+      interval: weekly

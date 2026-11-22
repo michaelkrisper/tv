@@ -60,10 +60,10 @@ A build script runs on the server after every merge and every three hours
 4. fetches the channel logos from [tv-logo/tv-logos](https://github.com/tv-logo/tv-logos)
    (transparent on the image; near-black logos get a light glow),
 5. writes the app and the logos to the folder the web server serves, and the
-   programme into one SQLite file for the API.
+   programme into one file for the API.
 
-A small read-only service ([`server/api.mjs`](server/api.mjs), `node:http` and
-`node:sqlite`, no dependencies) answers with exactly what the selected channels
+A small read-only service ([`server/main.go`](server/main.go), one static Go
+binary that keeps the programme in memory) answers with exactly what the selected channels
 need: one request for the lists, a second one while idle for the texts. The
 answers are compressed and carry `ETag` and `Cache-Control`; nothing about a
 request is stored. The app needs the service; it does not run on plain static
@@ -135,10 +135,10 @@ they are merged automatically once all checks pass.
 ```
 src/                the app as served (index.html, sw.js, manifest, icons)
 scripts/epg.mjs     XMLTV parsing and selection (no network, tested)
-scripts/build.mjs   fetch feeds, trim logos, write dist/ and the database
-scripts/db.mjs      the SQLite file for the API
+scripts/build.mjs   fetch feeds, trim logos, write dist/ and the programme file
+scripts/data.mjs    the programme file for the API
 scripts/serve.mjs   local server for dist/ and the API
-server/api.mjs      read-only programme API (node:http, node:sqlite)
+server/main.go      read-only programme API (Go, with its tests)
 deploy/             systemd units, Caddy site and build script of the server
 tests/              unit tests (node:test)
 tests/e2e/          browser tests (Playwright)
