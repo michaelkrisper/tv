@@ -48,8 +48,8 @@ test ensures that the first start stays below 2 MB.
 
 ## How it works
 
-A build script runs on the server after every merge and daily at 18:00 and
-shortly after midnight (Vienna time). It
+A build script runs on the server after every merge and every three hours
+(00:30, 03:30, ... 21:30 Vienna time). It
 
 1. downloads the XMLTV programme data for Germany and Austria from
    [epgshare01](https://epgshare01.online/) (about 60 MB each, uncompressed),
