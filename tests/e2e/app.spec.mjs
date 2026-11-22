@@ -288,6 +288,31 @@ test.describe('Without the API', () => {
   });
 });
 
+test.describe('Start from the last answer', () => {
+  // Without the service worker: its cache would answer for the API as well.
+  test.use({ serviceWorkers: 'block' });
+
+  test('the list is drawn from the device while the API does not answer', async ({ page }) => {
+    await page.goto('./');
+    await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
+    await page.waitForFunction(() => localStorage.getItem('tv.start'));
+    await page.route('**/api/**', (r) => r.fulfill({ status: 503, body: '' }));
+    await page.reload();
+    await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
+    await expect(page.locator('#days button').nth(2)).toHaveText('Morgen');
+    await expect(page.locator('#list .msg')).toHaveCount(0);
+  });
+
+  test('another channel selection does not use it', async ({ page }) => {
+    await page.goto('./');
+    await page.waitForFunction(() => localStorage.getItem('tv.start'));
+    await page.evaluate(() => localStorage.setItem('tv.channels.2', '["orf1"]'));
+    await page.route('**/api/**', (r) => r.fulfill({ status: 503, body: '' }));
+    await page.reload();
+    await expect(page.locator('#list .msg')).toHaveText('Programm konnte nicht geladen werden.');
+  });
+});
+
 test.describe('Transfer size', () => {
   // Without the service worker so every request is visible here. The worker
   // only additionally precaches the shell (~15 KB).
