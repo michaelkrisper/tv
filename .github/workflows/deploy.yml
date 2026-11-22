@@ -5,7 +5,7 @@ name: Deploy
 # commit on main gets the next patch version tag, and the own server
 # (https://tv.krisperapps.de/) is told to build that version. Any failing step
 # stops the deploy. Pull requests are only built and tested, never deployed.
-# Fresh programme data twice a day comes from the server's own timer.
+# Fresh programme data every three hours comes from the server's own timer.
 
 on:
   push:

@@ -5,7 +5,7 @@ after) for German and Austrian channels. The app is one hand-written HTML file
 (`src/index.html`, vanilla JS + inline CSS, no framework, no app build). A Node build
 script turns the epgshare01 XMLTV feeds into one SQLite file for the API and channel
 logos in `dist/`. The own server (https://tv.krisperapps.de/) builds and serves it by itself: a
-systemd timer runs `npm run build` on the latest version tag twice a day, and the
+systemd timer runs `npm run build` on the latest version tag every three hours, and the
 Deploy workflow's "krisperapps.de" job starts that build after a merge.
 
 ## Commands
@@ -73,8 +73,9 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   shell into `dist/` when its sources or the version changed (mark in `.cache/shell`);
   data runs refresh the database and `dist/img/`. Installed apps check for a new
   worker themselves and reload once.
-- Times are always computed in `Europe/Vienna`; the server's timer rebuilds at 18:00
-  and after midnight (00:30) so the third day exists.
+- Times are always computed in `Europe/Vienna`; the server's timer rebuilds every three
+  hours (00:30, 03:30, ... 21:30), the 00:30 run brings the third day. The timer unit
+  only exists on the server (`/etc/systemd/system/tv-build.timer`).
 
 ## Conventions
 
