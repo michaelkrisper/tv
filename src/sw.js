@@ -42,14 +42,20 @@ async function trim(cache) {
   await Promise.all(keys.slice(0, Math.max(0, keys.length - MAX_IMG)).map((k) => cache.delete(k)));
 }
 
-async function image(req) {
+// Answers go out at once; the copy for the cache is written afterwards.
+async function image(req, e) {
   const cache = await caches.open(IMG);
   const hit = await cache.match(req);
   if (hit) return hit;
   const res = await fetch(req);
   if (res.ok) {
-    await cache.put(req, res.clone());
-    if (Math.random() < 0.05) trim(cache);
+    const copy = res.clone();
+    e.waitUntil(
+      cache
+        .put(req, copy)
+        .then(() => Math.random() < 0.05 && trim(cache))
+        .catch(() => {}),
+    );
   }
   return res;
 }
@@ -80,16 +86,17 @@ async function api(req, e) {
   const path = new URL(req.url).pathname;
   const single = !path.endsWith('/day');
   const hit = await cache.match(req);
-  const fresh = fetch(req).then(async (res) => {
-    if (res.ok) {
-      const changed = hit && hit.headers.get('etag') !== res.headers.get('etag');
-      if (single) {
-        const old = samePath(await cache.keys(), path).filter((k) => k.url !== req.url);
-        await Promise.all(old.map((k) => cache.delete(k)));
-      }
-      await cache.put(req, res.clone());
-      if (changed && path.endsWith('/start')) await notify('list');
+  const keep = async (res) => {
+    const changed = hit && hit.headers.get('etag') !== res.headers.get('etag');
+    if (single) {
+      const old = samePath(await cache.keys(), path).filter((k) => k.url !== req.url);
+      await Promise.all(old.map((k) => cache.delete(k)));
     }
+    await cache.put(req, res);
+    if (changed && path.endsWith('/start')) await notify('list');
+  };
+  const fresh = fetch(req).then((res) => {
+    if (res.ok) e.waitUntil(keep(res.clone()).catch(() => {}));
     return res;
   });
   if (hit && !path.endsWith('/details')) {
@@ -115,10 +122,10 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== 'GET') return;
-  if (IMG_HOSTS.includes(url.hostname)) return e.respondWith(image(req));
+  if (IMG_HOSTS.includes(url.hostname)) return e.respondWith(image(req, e));
   if (url.origin !== location.origin) return;
   const path = url.pathname.slice(new URL(self.registration.scope).pathname.length);
-  if (path.startsWith('img/')) e.respondWith(image(req));
+  if (path.startsWith('img/')) e.respondWith(image(req, e));
   else if (path.startsWith('api/')) e.respondWith(api(req, e));
   else if (req.mode === 'navigate') e.respondWith(shell(new Request('./')).catch(() => fetch(req)));
   else e.respondWith(shell(req));

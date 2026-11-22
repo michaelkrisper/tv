@@ -55,7 +55,9 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   Rows are positional arrays: the layout in `write()`/`writeSchedules()` and its reader
   in `src/index.html` must change together.
 - The client reads only the API (no static fallback since #38); when it fails, the list
-  shows an error. Server files and install steps: `deploy/`.
+  shows an error. The last `api/start` answer is also kept in `localStorage` (`tv.start`)
+  and drawn synchronously on start, before the request, if it is for the same channels
+  and still has today. Server files and install steps: `deploy/`.
 - Thumbnails are not built: the app loads them live from fairu (`?width=`) or wsrv.nl
   (resize/crop to WebP). Both send CORS headers, so the service worker caches them.
 - `src/sw.js`: precached shell (cache `tv-shell-<version>`), cache-first images (capped),

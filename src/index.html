@@ -294,7 +294,9 @@ function dayLabel(iso) {
   if (iso === localIso()) return 'Heute';
   const t = new Date(); t.setDate(t.getDate() + 1);
   if (iso === localIso(t)) return 'Morgen';
-  return new Date(`${iso}T12:00`).toLocaleDateString('de-AT', { weekday: 'short', day: 'numeric', month: 'numeric' });
+  // By hand: the first Intl call costs more than the rest of the start script.
+  const d = new Date(`${iso}T12:00`);
+  return `${['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][d.getDay()]}., ${d.getDate()}.${d.getMonth() + 1}.`;
 }
 
 // Genre groups: order matters ("Krimikomödie" is Krimi, "Doku-Soap" is Show).
@@ -536,9 +538,22 @@ async function getList() {
   return { ...(await res.json()), q };
 }
 
-function applyList(l) {
+// The last answer stays on the device: the next start draws it at once,
+// without waiting for the service worker or the network. Only for the same
+// channels and while it still has today.
+const SNAP = 'tv.start';
+function snapshot() {
+  try {
+    const l = JSON.parse(localStorage.getItem(SNAP));
+    if (l?.q === chQuery() && l.days.includes(localIso())) return l;
+  } catch {}
+  return null;
+}
+
+function applyList(l, keep = true) {
   if (list && l.built === list.built && l.q === list.q && l.sdate === list.sdate) return;
   list = l;
+  if (keep) idle(() => { try { localStorage.setItem(SNAP, JSON.stringify(l)); } catch {} });
   idle(loadDetails);
   names = new Map(l.channels.map((c) => [c[0], c[1]]));
   logos = new Map(l.channels.filter((c) => c[2]).map((c) => [c[0], c[2]]));
@@ -975,10 +990,18 @@ async function loadDetails() {
 function prefetch() {
   if (!list || navigator.connection?.saveData) return;
   const ids = myChannels();
-  const seen = new Set();
-  const img = (url) => { if (url && !seen.has(url)) { seen.add(url); fetch(url, { mode: 'cors', priority: 'low' }).catch(() => {}); } };
-  for (const d of list.days) for (const id of ids) img(live(list.items[d]?.[id]?.[5], 320));
-  for (const id of ids) nowItem(id).then((it) => img(it?.th));
+  const urls = new Set();
+  for (const d of list.days) for (const id of ids) urls.add(live(list.items[d]?.[id]?.[5], 320));
+  for (const id of ids) urls.add(itemNow(list.sdate, id, list.sched[id] || [])?.th);
+  const todo = [...urls].filter(Boolean);
+  // A few per idle slice: every request costs main-thread time, even when the
+  // cache answers, and all at once would hold up the first taps.
+  let i = 0;
+  const step = (dl) => {
+    for (let n = 0; i < todo.length && (n < 4 || dl?.timeRemaining?.() > 4); n++) fetch(todo[i++], { mode: 'cors', priority: 'low' }).catch(() => {});
+    if (i < todo.length) idle(step);
+  };
+  step();
 }
 
 // Progress and "noch x Min" keep updating; in "Jetzt" the next programme moves
@@ -989,6 +1012,7 @@ function tick() {
 }
 setInterval(() => { if (document.visibilityState === 'visible' && list) tick(); }, 20000);
 
+{ const l = snapshot(); if (l) applyList(l, false); }
 refresh().then(() => idle(prefetch));
 // Back in the app: rebuild the list only after a day change (labels, views);
 // otherwise only what depends on the time.
