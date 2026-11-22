@@ -3,27 +3,28 @@
 Installable web app: what is on TV right now and at 20:15 (today, tomorrow, the day
 after) for German and Austrian channels. The app is one hand-written HTML file
 (`src/index.html`, vanilla JS + inline CSS, no framework, no app build). A Node build
-script turns the epgshare01 XMLTV feeds into one SQLite file for the API and channel
+script turns the epgshare01 XMLTV feeds into one programme file for the API (Go) and channel
 logos in `dist/`. The own server (https://tv.krisperapps.de/) builds and serves it by itself: a
 systemd timer runs `npm run build` on the latest version tag every three hours, and the
 Deploy workflow's "krisperapps.de" job starts that build after a merge.
 
 ## Commands
 
-Node 26 (`.nvmrc`).
+Node 26 (`.nvmrc`); Go 1.24+ for the API service in `server/`.
 
 ```sh
 npm ci
 npm run lint                      # Biome format + lint check (npm run lint:fix applies fixes)
 npm test                          # node:test unit tests (tests/*.test.mjs), offline
-npm run check                     # lint + unit tests = ci.yml
+npm run test:api                  # go vet + go test for server/
+npm run check                     # lint + unit tests + test:api = ci.yml
 npm run build                     # downloads both feeds (~60 MB each), writes dist/
-npm run serve                     # serves dist/ with gzip like the live site and /api/, PORT (default 8080)
+npm run serve                     # serves dist/ with gzip like the live site, builds and starts the API for /api/, PORT (default 8080)
 npx playwright install chromium   # once
 npm run test:e2e                  # Playwright against dist/ (port 8081); build first
 ```
 
-- `ci.yml` = lint + unit tests. `deploy.yml` calls `ci.yml`, then build (as a check,
+- `ci.yml` = lint + unit tests + API tests. `deploy.yml` calls `ci.yml`, then build (as a check,
   not published), Playwright, version tag, the server trigger and a curl check of the
   live site.
 - The build fails on purpose with fewer than 20 channels for today (broken source):
@@ -45,13 +46,17 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   precached. Copying `src/index.html` to `dist/` for quick E2E runs drops them.
 - Platform variants: the head script sets `html[data-os=ios|android]` (desktop: none);
   CSS and JS branch on it for tap feedback, transitions, settings sheet, haptics.
-- Output: the programme goes into one SQLite file (`scripts/db.mjs`, `node:sqlite`; `.db/tv.db`
-  or `TV_DB`, never inside `dist/`), replaced atomically. `server/api.mjs` reads it: a
-  dependency-free `node:http` service, one file because the server runs a copy.
+- Output: the programme goes into one file (`scripts/data.mjs`; `.db/tv.tsv` or `TV_DATA`,
+  never inside `dist/`), replaced atomically: a JSON head line, then one tab-separated
+  line per item and schedule row. `server/main.go` reads it: one static Go binary
+  (`net/http`, Brotli as its only dependency) that keeps the whole programme in memory,
+  uses rows and details straight from the file's buffer and keeps compressed answers
+  per query. The server compiles it in `tv-build` when `server/` changed.
   `api/start?ch=` = everything the lists need for the selected channels (20:15 items,
   today's rows from the current hour), `api/details?ch=` = the texts, fetched once while
   idle, `api/day?ch=&date=` = one whole day on tap. Answers depend only on build, hour and
-  query, hence the ETag without a query. `FORMAT` in both files must change together.
+  query, hence the ETag without building the answer. `FORMAT` (`data.mjs`) and `format`
+  (`main.go`) must change together.
   Rows are positional arrays: the layout in `write()`/`writeSchedules()` and its reader
   in `src/index.html` must change together.
 - The client reads only the API (no static fallback since #38); when it fails, the list
@@ -71,7 +76,7 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   replaces `__VERSION__` with a hash over the shell files only, not the data, so data
   builds do not force every device to refetch the shell. The build also only writes the
   shell into `dist/` when its sources or the version changed (mark in `.cache/shell`);
-  data runs refresh the database and `dist/img/`. Installed apps check for a new
+  data runs refresh the programme file and `dist/img/`. Installed apps check for a new
   worker themselves and reload once.
 - Times are always computed in `Europe/Vienna`; the server's timer rebuilds every three
   hours (00:30, 03:30, ... 21:30), the 00:30 run brings the third day. The timer unit
@@ -83,7 +88,8 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   `src/index.html` is not linted: keep its compact style (dense one-line CSS rules,
   short names) and check it by running the E2E tests.
 - UI text German; code, comments, identifiers, commit messages English.
-- Dev dependencies only (Biome, Playwright, sharp). No runtime dependencies, no
+- Dev dependencies only (Biome, Playwright, sharp); the API's one Go dependency is the
+  Brotli encoder (the standard library only has gzip). No runtime dependencies, no
   framework, no bundler for the app: that was an explicit decision for load speed.
 - The API is public: validate every parameter (`parseIds`, `parseQuery`), keep answers
   bounded, set no cookies, log nothing about requests.

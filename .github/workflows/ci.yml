@@ -1,6 +1,7 @@
 name: CI
 
-# Lint (Biome, including format check) and unit tests. Also called by the
+# Lint (Biome, including format check), unit tests and the tests of the API
+# service (Go, preinstalled on the runner). Also called by the
 # deploy workflow, which only builds and deploys after this has passed.
 
 on:
@@ -26,3 +27,4 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      - run: npm run test:api

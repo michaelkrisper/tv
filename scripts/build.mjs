@@ -1,6 +1,6 @@
 // Fetches the XMLTV feeds, extracts the 20:15 programme and the daily schedule
 // for "Jetzt" for every channel, fetches the channel logos and writes the
-// database and dist/img/. The app shell in dist/ is only written when it changed.
+// programme file for the API and dist/img/. The app shell in dist/ is only written when it changed.
 //
 // It also prepares the thumbnails of the 20:15 programmes as AVIF; all other
 // images the app loads live through the resize services (fairu itself,
@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import sharp from 'sharp';
-import { createDb } from './db.mjs';
+import { createData } from './data.mjs';
 import {
   enrich,
   hhmm,
@@ -30,8 +30,8 @@ import {
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
 const CACHE = join(ROOT, '.cache');
-// Not inside dist/: the database is read by the API service, never served as a file.
-const DB = process.env.TV_DB || join(ROOT, '.db', 'tv.db');
+// Not inside dist/: the programme is read by the API service, never served as a file.
+const DATA = process.env.TV_DATA || join(ROOT, '.db', 'tv.tsv');
 const TZ = 'Europe/Vienna';
 const HOUR = 20;
 const MINUTE = 15;
@@ -337,8 +337,8 @@ const detail = (p) => ({
 
 // The full schedule per channel and day, times in minutes from 00:00.
 // Images as source URLs; the app loads and downsizes them live. Every row
-// goes into the database with its details.
-function writeSchedules(channels, ids, days, thisYear, db) {
+// goes into the programme file with its details.
+function writeSchedules(channels, ids, days, thisYear, data) {
   for (const d of days) {
     for (const id of ids) {
       const progs = channels.get(id).sched.get(d.date);
@@ -358,7 +358,7 @@ function writeSchedules(channels, ids, days, thisYear, db) {
       ]);
       const x = sorted.map(detail);
       out.forEach((row, k) => {
-        db.sched(d.date, id, row, x[k]);
+        data.sched(d.date, id, row, x[k]);
       });
     }
   }
@@ -408,8 +408,8 @@ async function write(channels, days) {
     channels.get(a).name.localeCompare(channels.get(b).name, 'de'),
   );
   const thisYear = Number(days[0].date.slice(0, 4));
-  const db = createDb(
-    DB,
+  const data = createData(
+    DATA,
     {
       built: Date.now(),
       channels: ids.map((id) => [id, channels.get(id).name, channels.get(id).logo ?? '']),
@@ -433,11 +433,11 @@ async function write(channels, days) {
         p.img.replace(/^https:\/\//, ''),
         p.rating,
       ];
-      db.item(date, id, Math.round((p.stop - from) / 60000), row, detail(p));
+      data.item(date, id, Math.round((p.stop - from) / 60000), row, detail(p));
     }
   }
-  writeSchedules(channels, ids, days, thisYear, db);
-  db.close();
+  writeSchedules(channels, ids, days, thisYear, data);
+  data.close();
 }
 
 const SHELL = ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable.png'];

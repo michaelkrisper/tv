@@ -13,10 +13,10 @@ message. These files install it.
 | `tv.caddy`              | `/etc/caddy/sites/tv.caddy` (replaces the current one) |
 
 How it fits together: `tv-build` (timer and deploy key, user `tv`) writes the
-database `/srv/apps/tv/tv.db` in one step and copies `server/api.mjs` to
-`/srv/apps/tv/api.mjs` when it changed. `tv-api.service` runs that copy on
-`127.0.0.1:8811`, read-only, and opens a new database by itself; the path unit
-restarts it only when its code changed. Caddy sends `/api/*` to it and serves
+programme file `/srv/apps/tv/tv.tsv` in one step and compiles `server/` to
+`/srv/apps/tv/tv-api` when its source changed (needs Go: `apt install golang-go`).
+`tv-api.service` runs that binary on `127.0.0.1:8811`, read-only, and loads a
+new programme file by itself; the path unit restarts it only when its code changed. Caddy sends `/api/*` to it and serves
 everything else from `/srv/www/tv` as before.
 
 ## Install
@@ -25,6 +25,7 @@ In a root shell on the server, after the version containing these files was
 deployed (the build's checkout has them):
 
 ```sh
+apt install golang-go
 cd /srv/build/tv/repo/deploy
 install -d -o tv -g tv -m 755 /srv/apps/tv
 install -m 755 tv-build /usr/local/bin/tv-build
@@ -32,7 +33,7 @@ install -d /etc/systemd/system/tv-build.service.d
 install -m 644 tv-build-api.conf /etc/systemd/system/tv-build.service.d/api.conf
 install -m 644 tv-api.service tv-api-deploy.path tv-api-deploy.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl start tv-build.service     # writes /srv/apps/tv/tv.db and api.mjs
+systemctl start tv-build.service     # writes /srv/apps/tv/tv.tsv and tv-api
 systemctl enable --now tv-api.service tv-api-deploy.path
 curl -s 'http://127.0.0.1:8811/api/start?ch=orf1' | head -c 200; echo
 install -m 644 tv.caddy /etc/caddy/sites/tv.caddy

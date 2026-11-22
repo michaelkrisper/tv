@@ -24,13 +24,14 @@
 
 ## Development
 
-Requirement: Node.js 26 (see [`.nvmrc`](.nvmrc)).
+Requirements: Node.js 26 (see [`.nvmrc`](.nvmrc)) and Go 1.24 or newer for the
+API service (`npm run serve` and the tests build it).
 
 ```sh
 npm ci
 npm run build                     # fetch data and write dist/ (~10 s)
 npm run serve                     # http://localhost:8080
-npm run check                     # lint (Biome) and unit tests
+npm run check                     # lint (Biome), unit tests and the API's Go tests
 npx playwright install chromium   # once
 npm run test:e2e                  # browser tests against dist/
 ```
