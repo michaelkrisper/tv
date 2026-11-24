@@ -41,10 +41,11 @@ and tapping work without a network:
 | Thumbnails for all days and "Jetzt"      | ~680 KB     |
 | **Total**                                | **~850 KB** |
 
-After that only the large images of an opened detail page are loaded (~30 KB).
+After that only the large image of a detail page is loaded, starting when its
+row is touched (~45 KB).
 The service worker serves everything from cache immediately and refreshes in
 the background. With data saver enabled the app prefetches nothing. A browser
-test ensures that the first start stays below 2 MB.
+test reports the transfer size of the first start.
 
 ## How it works
 
@@ -113,7 +114,7 @@ npm run test:e2e                  # browser tests against dist/
   feeds; the API's queries, input validation, compression and 304 answers
 - **Browser** (`tests/e2e/`, Playwright, Chromium with a phone viewport): days
   and swiping, detail page with "Danach", back via button and gesture, theme,
-  iOS status bar strip, no JavaScript errors, transfer size under 2 MB, the
+  iOS status bar strip, no JavaScript errors, the requests of the first start, the
   programme in two requests, a message when the API fails
 
 ### Deployment
