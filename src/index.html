@@ -753,6 +753,24 @@ $('#list').addEventListener('click', (e) => {
   const row = e.target.closest('.row[data-id]');
   if (row) openDetail(shown.get(row.dataset.id));
 });
+// The detail image starts loading when a row is touched, not when the tap
+// ends. A touch that turns into scrolling is cancelled within the short wait.
+let heroWait = 0;
+const noHero = () => clearTimeout(heroWait);
+document.addEventListener('pointerdown', (e) => {
+  const row = e.target.closest('#list .row[data-id]');
+  const li = e.target.closest('.next li[data-k]');
+  const it = row ? shown.get(row.dataset.id) : li && current?.nextList[li.dataset.k];
+  noHero();
+  if (!it?.hero || navigator.connection?.saveData) return;
+  heroWait = setTimeout(() => {
+    const im = new Image();
+    if (it.live) im.crossOrigin = 'anonymous';
+    im.src = it.hero;
+  }, 40);
+}, { passive: true });
+document.addEventListener('pointercancel', noHero, { passive: true });
+document.addEventListener('scroll', noHero, { passive: true, capture: true });
 $('#days').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (b) goView(b.dataset.day);
@@ -1007,9 +1025,9 @@ async function loadDetails() {
   } catch {}
 }
 
-// Prefetch the thumbnails for all days and for "Jetzt" while idle (under 2 MB
-// in total). After that, switching works offline; only the large images load
-// on open.
+// Prefetch the thumbnails for all days and for "Jetzt" while idle.
+// After that, switching works offline; only the large images load
+// when a row is touched.
 function prefetch() {
   if (!list || navigator.connection?.saveData) return;
   const ids = myChannels();

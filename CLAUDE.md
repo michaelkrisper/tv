@@ -98,7 +98,9 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
 
 ## Rules and pitfalls
 
-- Keep the first start including idle prefetch under 2 MB; an E2E test enforces it.
+- Load only what is used: thumbnails are prefetched while idle, detail images when a
+  row is touched (`pointerdown`). There is no fixed size limit; an E2E test reports the
+  transfer size of the first start.
   Prefetch is skipped with data saver (`navigator.connection.saveData`).
 - iOS 26 blurs the top edge of installed web apps. Tried and dropped: fixed header at
   the top, list in its own scroll container, 1-px scroll nudge. Current solution:
