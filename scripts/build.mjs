@@ -2,7 +2,7 @@
 // for "Jetzt" for every channel, fetches the channel logos and writes the
 // programme file for the API and dist/img/. The app shell in dist/ is only written when it changed.
 //
-// It also prepares the thumbnails of the 20:15 programmes as AVIF; all other
+// It also fetches the thumbnails of the 20:15 programmes ahead; all other
 // images the app loads live through the resize services (fairu itself,
 // otherwise wsrv.nl).
 
@@ -267,13 +267,12 @@ async function logos(channels) {
 
 // ---- Thumbnails ----------------------------------------------------------
 
-const THUMB = { width: 320, height: 180 };
-
-// Never the originals (up to 6 MB each): the same resize services the app
-// uses deliver a small version, which is cropped and encoded here.
+// Never the originals (up to 6 MB each): the resize services deliver the same
+// small WebP the app would load live (live() in src/index.html, width 320),
+// and it is stored as it comes.
 function thumbSource(src) {
-  if (src.startsWith('files.fairu.app')) return `https://${src}?width=480&format=webp&quality=90`;
-  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${THUMB.width}&h=${THUMB.height}&fit=cover&a=attention&output=jpg&q=92`;
+  if (src.startsWith('files.fairu.app')) return `https://${src}?width=320&format=webp&quality=70`;
+  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=320&h=180&fit=cover&a=attention&output=webp&q=65`;
 }
 
 // Thumbnails of the 20:15 programmes as dist/img/t/<thumbName>, so the first
@@ -305,11 +304,9 @@ async function thumbs(channels, days) {
       if (!(await exists(file))) {
         const res = await fetch(thumbSource(src), { signal: AbortSignal.timeout(20_000) });
         if (!res.ok) throw new Error(res.status);
-        // effort 2: higher ones take several times as long for the same size
-        await sharp(Buffer.from(await res.arrayBuffer()))
-          .resize({ ...THUMB, fit: 'cover', position: 'attention' })
-          .avif({ quality: 50, effort: 2 })
-          .toFile(file);
+        const type = res.headers.get('content-type') ?? '';
+        if (!type.startsWith('image/')) throw new Error(`not an image (${type})`);
+        await writeFile(file, Buffer.from(await res.arrayBuffer()));
         made++;
       }
       await cp(file, join(out, name));

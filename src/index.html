@@ -266,12 +266,12 @@ function live(src, w) {
 
 // The 20:15 thumbnails are built ahead and come from the own server, named
 // after the source like thumbName() in scripts/epg.mjs. If one is missing (or
-// the browser cannot show AVIF), the image falls back to the live one.
+// cannot be loaded), the image falls back to the live one.
 const noThumb = new Set();
 function thumb(src) {
   if (!src) return '';
   const n = src.replace(/[^A-Za-z0-9]+/g, '-');
-  return n.length > 150 || noThumb.has(src) ? live(src, 320) : `img/t/${n}.avif`;
+  return n.length > 150 || noThumb.has(src) ? live(src, 320) : `img/t/${n}.webp`;
 }
 
 let list = null;

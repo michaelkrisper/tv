@@ -64,7 +64,8 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   and drawn synchronously on start, before the request, if it is for the same channels
   and still has today. Server files and install steps: `deploy/`.
 - Thumbnails of the 20:15 programmes are built: `thumbs()` fetches a small version
-  through fairu/wsrv.nl, writes AVIF to `dist/img/t/` and caches it in `.cache/thumb`.
+  through fairu/wsrv.nl (the same WebP the app loads live), writes it unchanged to
+  `dist/img/t/` and caches it in `.cache/thumb`.
   The file name is the source URL (`thumbName()` in `scripts/epg.mjs` and `thumb()` in
   `src/index.html` must change together); a missing file falls back to the live image.
   All other images (schedule rows, large detail images) load live from fairu

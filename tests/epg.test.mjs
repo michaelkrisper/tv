@@ -37,7 +37,7 @@ test('20:15 Vienna in summer and winter time', () => {
 });
 
 test('thumbName turns a source URL into a file name', () => {
-  assert.equal(thumbName('img.example.de/a1/29/x_y.jpeg?w=1'), 'img-example-de-a1-29-x-y-jpeg-w-1.avif');
+  assert.equal(thumbName('img.example.de/a1/29/x_y.jpeg?w=1'), 'img-example-de-a1-29-x-y-jpeg-w-1.webp');
   assert.equal(thumbName(''), '');
   assert.equal(thumbName(`example.de/${'a'.repeat(150)}`), '');
 });
