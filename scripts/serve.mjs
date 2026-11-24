@@ -21,7 +21,6 @@ const TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.webp': 'image/webp',
-  '.avif': 'image/avif',
 };
 const TEXT = new Set(['.html', '.js', '.json', '.webmanifest', '.svg']);
 

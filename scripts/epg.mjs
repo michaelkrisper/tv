@@ -68,7 +68,7 @@ export function hhmm(ms, tz) {
 // same name (thumb() in src/index.html), so both must change together.
 export function thumbName(src) {
   const name = src.replace(/[^A-Za-z0-9]+/g, '-');
-  return name && name.length <= 150 ? `${name}.avif` : '';
+  return name && name.length <= 150 ? `${name}.webp` : '';
 }
 
 export function slug(name) {
