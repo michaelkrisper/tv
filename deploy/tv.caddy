@@ -1,10 +1,17 @@
 tv.krisperapps.de {
 	import common
 	root * /srv/www/tv
-	# Programme API: a read-only Node service (tv-api.service). It compresses
+	# Programme API: a read-only Go service (tv-api.service). It compresses
 	# its answers and sets ETag and Cache-Control itself.
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8811
+	}
+	# Programme images built ahead: named after their source, never rewritten
+	# with other content and gone after a day or two.
+	@images path /img/t/* /img/h/*
+	handle @images {
+		header Cache-Control "public, max-age=86400"
+		file_server
 	}
 	handle {
 		# Always revalidate (ETag), so a deploy shows up at once.
