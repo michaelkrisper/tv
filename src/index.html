@@ -264,15 +264,20 @@ function live(src, w) {
   return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${w}&h=${h}&fit=cover&a=attention&output=webp&q=65`;
 }
 
-// The 20:15 thumbnails are built ahead and come from the own server, named
-// after the source like thumbName() in scripts/epg.mjs. If one is missing (or
-// cannot be loaded), the image falls back to the live one.
-const noThumb = new Set();
-function thumb(src) {
+// Built ahead and served by the own server (images() in scripts/build.mjs),
+// named after the source like thumbName() in scripts/epg.mjs: the thumbnails
+// (t) of the 20:15 programmes, and thumbnail plus detail image (h) of
+// everything running within 24 hours after the build. If one is missing, the
+// image falls back to the live one (data-fb).
+const gone = new Set();
+function own(dir, src, w) {
   if (!src) return '';
-  const n = src.replace(/[^A-Za-z0-9]+/g, '-');
-  return n.length > 150 || noThumb.has(src) ? live(src, 320) : `img/t/${n}.webp`;
+  const u = `img/${dir}/${src.replace(/[^A-Za-z0-9]+/g, '-')}.webp`;
+  return u.length > 161 || gone.has(u) ? live(src, w) : u;
 }
+const thumb = (src) => own('t', src, 320);
+const ahead = (s, e) => !!list && e > list.built && s < list.built + 864e5;
+const fbAttr = (url, fb) => (fb && url.startsWith('img/') ? ` data-fb="${esc(fb)}"` : '');
 
 let list = null;
 let view = null; // NOW or a date (20:15 view)
@@ -349,7 +354,8 @@ function item2015(date, id) {
   if (e <= s) e += 864e5;
   return {
     id, title, genre, year, rating, s, e, start, stop,
-    get th() { return thumb(src); }, fb: src, hero: live(src, 960), live: true,
+    get th() { return thumb(src); }, fb: live(src, 320), live: true,
+    get hero() { return ahead(s, e) ? own('h', src, 960) : live(src, 960); }, hfb: live(src, 960),
     x: () => {
       if (pre.d.has(`${date}/${id}`)) return Promise.resolve(pre.d.get(`${date}/${id}`));
       const min = mins(at(date, '00:00'), s);
@@ -386,7 +392,9 @@ function schedItem(date, id, p) {
   const e = base + p[1] * 6e4;
   return {
     id, title: p[2], genre: p[3], year: p[5], rating: p[6], s, e, start: hm(s), stop: hm(e),
-    th: live(p[4], 320), hero: live(p[4], 960), sm: live(p[4], 160), live: true,
+    get th() { return ahead(s, e) ? thumb(p[4]) : live(p[4], 320); }, fb: live(p[4], 320),
+    get hero() { return ahead(s, e) ? own('h', p[4], 960) : live(p[4], 960); }, hfb: live(p[4], 960),
+    get sm() { return ahead(s, e) ? thumb(p[4]) : live(p[4], 160); }, live: true,
     x: () => {
       const x = pre.x.get(`${date}/${id}/${p[0]}`);
       return x ? Promise.resolve(x) : rowText(date, id, (q) => q[0] === p[0]);
@@ -421,8 +429,7 @@ function rowHtml(id, it, i) {
   if (!it) return `<div class="row none"><div class="tw"><div class="th"></div>${mark}</div><div><span class="t">Keine Daten</span></div></div>`;
   const prio = i < 6 ? 'fetchpriority="high"' : 'loading="lazy"';
   const cors = it.live ? ' crossorigin="anonymous"' : '';
-  const fb = it.fb && it.th.startsWith('img/') ? ` data-fb="${esc(it.fb)}"` : '';
-  const th = it.th ? `<img class="th" src="${it.th}"${fb} ${prio}${cors} decoding="async" width="320" height="180" alt="">` : '<div class="th"></div>';
+  const th = it.th ? `<img class="th" src="${it.th}"${fbAttr(it.th, it.fb)} ${prio}${cors} decoding="async" width="320" height="180" alt="">` : '<div class="th"></div>';
   const scrim = logos.get(id) === 'w' ? ' sc' : '';
   return `<button class="row" data-id="${id}"><div class="tw${scrim}">${th}${mark}</div>${progressBar(it)}`
     + `<div><span class="t">${esc(it.title)}</span><span class="m ml"><span>${it.genre ? genreChip(it.genre) : ''}</span><span class="tr">${rightText(it)}</span></span></div></button>`;
@@ -446,11 +453,11 @@ function settleImages(root) {
 }
 document.addEventListener('load', (e) => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
 document.addEventListener('error', (e) => {
-  const src = e.target.dataset?.fb;
-  if (!src) return;
+  const fb = e.target.dataset?.fb;
+  if (!fb) return;
   delete e.target.dataset.fb;
-  noThumb.add(src);
-  e.target.src = live(src, 320);
+  gone.add(e.target.getAttribute('src'));
+  e.target.src = fb;
 }, true);
 
 let renderToken = 0;
@@ -605,7 +612,7 @@ async function openDetail(it, dir = 0) {
   const id = it.id;
   current = it;
   const cors = it.live ? ' crossorigin="anonymous"' : '';
-  const hero = it.hero ? `<img class="hero" src="${it.hero}"${cors} alt="">` : '';
+  const hero = it.hero ? `<img class="hero" src="${it.hero}"${fbAttr(it.hero, it.hfb)}${cors} alt="">` : '';
   const bg = it.th ? ` style="background-image:url('${it.th}')"` : '';
   // Always show the name as text too: some logos (e.g. ARD alpha) are unrecognisable.
   const mark = `<div class="chn">${logos.has(id) ? channelMark(id) : ''}<span class="ch">${esc(names.get(id))}</span></div>`;
@@ -631,7 +638,7 @@ async function openDetail(it, dir = 0) {
   if (x.cast) body += `<h3>Besetzung</h3><ul class="cast">${x.cast.map((a) => `<li>${esc(a.n)}${a.r ? ` <small>${esc(a.r)}</small>` : ''}</li>`).join('')}</ul>`;
   if (x.dir) body += `<h3>Regie</h3><p>${x.dir.map(esc).join(', ')}</p>`;
   it.nextList = next;
-  const small = (n) => (n.sm ? `<img class="nt" src="${n.sm}" loading="lazy" decoding="async" alt="">` : '<span class="nt"></span>');
+  const small = (n) => (n.sm ? `<img class="nt" src="${n.sm}"${fbAttr(n.sm, n.fb)} loading="lazy" decoding="async" alt="">` : '<span class="nt"></span>');
   if (it.nextList.length) body += `<h3>Danach</h3><ul class="next">${it.nextList.map((n, k) => `<li data-k="${k}"><b>${n.start}</b>${small(n)}<span>${esc(n.title)}</span><i class="chev"></i></li>`).join('')}</ul>`;
   dx.innerHTML = body;
 }

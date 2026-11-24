@@ -63,9 +63,9 @@ export function hhmm(ms, tz) {
   return `${String(p.h).padStart(2, '0')}:${String(p.mi).padStart(2, '0')}`;
 }
 
-// File name of a programme image's thumbnail: its source URL without the
+// File name of a programme image built ahead: its source URL without the
 // scheme, or '' when that gets too long for a file name. The app derives the
-// same name (thumb() in src/index.html), so both must change together.
+// same name (own() in src/index.html), so both must change together.
 export function thumbName(src) {
   const name = src.replace(/[^A-Za-z0-9]+/g, '-');
   return name && name.length <= 150 ? `${name}.webp` : '';

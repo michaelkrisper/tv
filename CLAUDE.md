@@ -63,14 +63,15 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   shows an error. The last `api/start` answer is also kept in `localStorage` (`tv.start`)
   and drawn synchronously on start, before the request, if it is for the same channels
   and still has today. Server files and install steps: `deploy/`.
-- Thumbnails of the 20:15 programmes are built: `thumbs()` fetches a small version
-  through fairu/wsrv.nl (the same WebP the app loads live), writes it unchanged to
-  `dist/img/t/` and caches it in `.cache/thumb`.
-  The file name is the source URL (`thumbName()` in `scripts/epg.mjs` and `thumb()` in
-  `src/index.html` must change together); a missing file falls back to the live image.
-  All other images (schedule rows, large detail images) load live from fairu
-  (`?width=`) or wsrv.nl (resize/crop to WebP). Both send CORS headers, so the service
-  worker caches them.
+- Images are built ahead: `images()` fetches the originals of everything running within
+  24 hours after the build and of the 20:15 programmes of all days, downsizes them with
+  sharp to WebP and caches them in `.cache/img`: `dist/img/t/` (320 px, lists) and, for
+  the 24 hours only, `dist/img/h/` (1080 px, detail page). The client applies the same
+  24-hour rule to `built` (`ahead()`); the file name is the source URL (`thumbName()` in
+  `scripts/epg.mjs` and `own()` in `src/index.html` must change together). A missing
+  file falls back to the live image (`data-fb`). Later programmes load live from fairu
+  (`?width=`) or wsrv.nl (resize/crop to WebP); both send CORS headers, so the service
+  worker caches them. `TV_AHEAD` (hours) shortens the window; CI uses 1.
 - `src/sw.js`: precached shell (cache `tv-shell-<version>`), cache-first images (capped),
   stale-while-revalidate API answers with a change notice; of `api/start` and `api/details` only
   the latest answer is kept and used offline for any channel selection. The build
