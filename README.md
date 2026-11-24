@@ -69,9 +69,11 @@ answers are compressed and carry `ETag` and `Cache-Control`; nothing about a
 request is stored. The app needs the service; it does not run on plain static
 hosting. Server setup: [`deploy/`](deploy/).
 
-The app loads thumbnails live: fairu resizes on its own, everything else is
-downsized and cropped to 16:9 by [wsrv.nl](https://wsrv.nl/) (WebP, ~8 KB per
-thumbnail).
+The images of everything running in the next 24 hours (and of the 20:15
+programmes) are built ahead and come from the own server: a thumbnail and a
+phone-sized detail image as WebP. Later programmes load live: fairu resizes on
+its own, everything else is downsized and cropped to 16:9 by
+[wsrv.nl](https://wsrv.nl/).
 
 ### API
 

@@ -297,6 +297,22 @@ test.describe('Thumbnails', () => {
     await expect(page.locator('#list img.th.ok[src^="img/t/"]').first()).toBeVisible();
   });
 
+  test('"Jetzt" and the detail page take theirs from the own server', async ({ page }) => {
+    await page.goto('./');
+    await page.locator('#days button').first().click();
+    await expect(page.locator('#list img.th.ok[src^="img/t/"]').first()).toBeVisible();
+    await page.locator('#list .row[data-id]:has(img.th[src^="img/t/"])').first().click();
+    await expect(page.locator('dialog img.hero.ok[src^="img/h/"]')).toBeVisible();
+  });
+
+  test('a missing detail image falls back to the live one', async ({ page }) => {
+    await page.route('**/img/h/**', (r) => r.fulfill({ status: 404, body: '' }));
+    await page.goto('./');
+    await page.locator('#days button').first().click();
+    await page.locator('#list .row[data-id]:has(img.th[src^="img/t/"])').first().click();
+    await expect(page.locator('dialog img.hero.ok[src^="https://"]')).toBeVisible();
+  });
+
   test('a missing one falls back to the live image', async ({ page }) => {
     await page.route('**/img/t/**', (r) => r.fulfill({ status: 404, body: '' }));
     await page.goto('./');

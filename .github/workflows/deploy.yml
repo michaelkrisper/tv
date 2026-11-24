@@ -54,6 +54,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           APP_VERSION: ${{ steps.version.outputs.version }}
+          # Images of the next hour are enough for the tests (the server builds 24).
+          TV_AHEAD: 1
 
       # Browser tests against the finished build before the version is tagged.
       - id: playwright

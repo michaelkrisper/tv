@@ -2,7 +2,7 @@
 // for "Jetzt" for every channel, fetches the channel logos and writes the
 // programme file for the API and dist/img/. The app shell in dist/ is only written when it changed.
 //
-// It also fetches the thumbnails of the 20:15 programmes ahead; all other
+// It also builds the images of the next 24 hours and of the 20:15 programmes ahead; all other
 // images the app loads live through the resize services (fairu itself,
 // otherwise wsrv.nl).
 
@@ -265,59 +265,90 @@ async function logos(channels) {
   console.info(`Logos: ${found} of ${channels.size} channels`);
 }
 
-// ---- Thumbnails ----------------------------------------------------------
+// ---- Images --------------------------------------------------------------
 
-// Never the originals (up to 6 MB each): the resize services deliver the same
-// small WebP the app would load live (live() in src/index.html, width 320),
-// and it is stored as it comes.
-function thumbSource(src) {
-  if (src.startsWith('files.fairu.app')) return `https://${src}?width=320&format=webp&quality=70`;
-  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=320&h=180&fit=cover&a=attention&output=webp&q=65`;
-}
+// What starts within this time after the build gets its images built ahead;
+// own() in src/index.html uses the same 24 hours. CI sets fewer.
+const AHEAD = Number(process.env.TV_AHEAD ?? 24) * 3_600_000;
+// Thumbnail for the lists and a detail image as wide as a phone screen.
+const SIZES = { t: { width: 320, height: 180, quality: 65 }, h: { width: 1080, height: 608, quality: 70 } };
 
-// Thumbnails of the 20:15 programmes as dist/img/t/<thumbName>, so the first
-// list comes from the app's own server. Files are kept in .cache/thumb between
-// builds: only new programmes cost requests, the ones no longer in the
-// programme are removed. A missing one is not an error: the app then loads it
-// live, as it does for all other images.
-async function thumbs(channels, days) {
-  const dir = join(CACHE, 'thumb');
-  const out = join(DIST, 'img', 't');
-  await mkdir(dir, { recursive: true });
-  await mkdir(out, { recursive: true });
-  const srcs = new Set();
-  for (const d of days) {
-    for (const ch of channels.values()) {
+// Images from the app's own server: dist/img/t/<thumbName> for the 20:15
+// programmes of all days, and t/ plus h/ for everything running within AHEAD.
+// The original is fetched once (up to 6 MB) and downsized here. Files are kept
+// in .cache/img between builds: only new programmes cost requests, the ones no
+// longer wanted are removed. A missing one is not an error: the app then loads
+// it live, as it does for all later programmes.
+async function images(channels, days, built) {
+  const want = { t: new Set(), h: new Set() };
+  for (const ch of channels.values()) {
+    for (const d of days) {
       const src = ch.days.get(d.date)?.img.replace(/^https:\/\//, '');
-      if (src && thumbName(src)) srcs.add(src);
+      if (src && thumbName(src)) want.t.add(src);
+      for (const p of ch.sched.get(d.date) ?? []) {
+        const s = p.img.replace(/^https:\/\//, '');
+        if (!s || !thumbName(s) || p.stop <= built || p.start >= built + AHEAD) continue;
+        want.t.add(s);
+        want.h.add(s);
+      }
     }
   }
-  const wanted = new Set([...srcs].map(thumbName));
-  for (const f of await readdir(dir)) if (!wanted.has(f)) await rm(join(dir, f), { force: true });
-  let made = 0;
-  let ready = 0;
+  await rm(join(CACHE, 'thumb'), { recursive: true, force: true });
+  for (const k of ['t', 'h']) {
+    const names = new Set([...want[k]].map(thumbName));
+    await mkdir(join(CACHE, 'img', k), { recursive: true });
+    await mkdir(join(DIST, 'img', k), { recursive: true });
+    for (const f of await readdir(join(CACHE, 'img', k))) {
+      if (!names.has(f)) await rm(join(CACHE, 'img', k, f), { force: true });
+    }
+  }
+  let fetched = 0;
+  const ready = { t: 0, h: 0 };
   const failed = new Map();
-  await pool([...srcs], 16, async (src) => {
+  await pool([...want.t], 8, async (src) => {
     const name = thumbName(src);
-    const file = join(dir, name);
+    const kinds = ['t', 'h'].filter((k) => want[k].has(src));
     try {
-      if (!(await exists(file))) {
-        const res = await fetch(thumbSource(src), { signal: AbortSignal.timeout(20_000) });
+      const todo = [];
+      for (const k of kinds) if (!(await exists(join(CACHE, 'img', k, name)))) todo.push(k);
+      if (todo.length) {
+        const res = await fetch(`https://${src}`, { signal: AbortSignal.timeout(30_000) });
         if (!res.ok) throw new Error(res.status);
-        const type = res.headers.get('content-type') ?? '';
-        if (!type.startsWith('image/')) throw new Error(`not an image (${type})`);
-        await writeFile(file, Buffer.from(await res.arrayBuffer()));
-        made++;
+        // The largest size is cut from the original, the smaller one from that
+        // result: the same crop, and the costly step runs once.
+        let from = Buffer.from(await res.arrayBuffer());
+        for (const k of ['h', 't'].filter((x) => kinds.includes(x))) {
+          const { quality, ...size } = SIZES[k];
+          const cut = sharp(from).resize({
+            ...size,
+            fit: 'cover',
+            position: 'attention',
+            withoutEnlargement: true,
+          });
+          if (todo.includes(k))
+            await cut
+              .clone()
+              .webp({ quality })
+              .toFile(join(CACHE, 'img', k, name));
+          if (k === 'h') from = await cut.png({ compressionLevel: 0 }).toBuffer();
+        }
+        fetched++;
       }
-      await cp(file, join(out, name));
-      ready++;
+      for (const k of kinds) {
+        // With the time kept, rsync leaves unchanged images alone.
+        await cp(join(CACHE, 'img', k, name), join(DIST, 'img', k, name), { preserveTimestamps: true });
+        ready[k]++;
+      }
     } catch (e) {
-      await rm(file, { force: true });
-      failed.set(e.message, (failed.get(e.message) ?? 0) + 1);
+      for (const k of kinds) await rm(join(CACHE, 'img', k, name), { force: true });
+      const why = /^\d+$/.test(e.message) ? e.message : 'not readable';
+      failed.set(why, (failed.get(why) ?? 0) + 1);
     }
   });
   const why = [...failed].map(([m, n]) => `, ${n} failed: ${m}`).join('');
-  console.info(`Thumbnails: ${ready} of ${srcs.size} (${made} new${why})`);
+  console.info(
+    `Images: ${ready.t} of ${want.t.size} thumbnails, ${ready.h} of ${want.h.size} detail images (${fetched} fetched${why})`,
+  );
 }
 
 // ---- Output --------------------------------------------------------------
@@ -333,7 +364,7 @@ const detail = (p) => ({
 });
 
 // The full schedule per channel and day, times in minutes from 00:00.
-// Images as source URLs; the app loads and downsizes them live. Every row
+// Images as source URLs; the app derives the built file or the live URL. Every row
 // goes into the programme file with its details.
 function writeSchedules(channels, ids, days, thisYear, data) {
   for (const d of days) {
@@ -400,7 +431,7 @@ async function splash() {
   return links.join('\n');
 }
 
-async function write(channels, days) {
+async function write(channels, days, built) {
   const ids = [...channels.keys()].sort((a, b) =>
     channels.get(a).name.localeCompare(channels.get(b).name, 'de'),
   );
@@ -408,7 +439,7 @@ async function write(channels, days) {
   const data = createData(
     DATA,
     {
-      built: Date.now(),
+      built,
       channels: ids.map((id) => [id, channels.get(id).name, channels.get(id).logo ?? '']),
     },
     days,
@@ -491,8 +522,9 @@ async function main() {
   const channels = merge(feeds);
   for (const [id, ch] of channels) if (!ch.days.size) channels.delete(id);
   await logos(channels);
-  await thumbs(channels, days);
-  await write(channels, days);
+  const built = Date.now();
+  await images(channels, days, built);
+  await write(channels, days, built);
   console.info(`Shell: ${(await shell()) ? 'written' : 'unchanged'}`);
   const today = days[0].date;
   const n = [...channels.values()].filter((c) => c.days.has(today)).length;
