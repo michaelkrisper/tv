@@ -1,0 +1,13 @@
+# /etc/systemd/system/tv-api.socket
+[Unit]
+Description=Socket of the tv programme API (Caddy connects here)
+
+[Socket]
+ListenStream=/run/tv-api.sock
+# Only Caddy may connect.
+SocketUser=root
+SocketGroup=caddy
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

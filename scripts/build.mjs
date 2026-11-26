@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gunzipSync } from 'node:zlib';
+import { brotliCompressSync, constants, gunzipSync, gzipSync } from 'node:zlib';
 import sharp from 'sharp';
 import { createData } from './data.mjs';
 import {
@@ -460,6 +460,16 @@ async function shell() {
   }
   const sw = await readFile(join(ROOT, 'src', 'sw.js'), 'utf8');
   await writeFile(join(DIST, 'sw.js'), sw.replace('__VERSION__', hash.update(sw).digest('hex').slice(0, 10)));
+  // Precompressed once at the strongest level; Caddy sends these as they are
+  // (precompressed in deploy/tv.caddy).
+  for (const f of ['index.html', 'sw.js', 'manifest.webmanifest', 'icon.svg']) {
+    const raw = await readFile(join(DIST, f));
+    const br = {
+      params: { [constants.BROTLI_PARAM_QUALITY]: 11, [constants.BROTLI_PARAM_SIZE_HINT]: raw.length },
+    };
+    await writeFile(join(DIST, `${f}.br`), brotliCompressSync(raw, br));
+    await writeFile(join(DIST, `${f}.gz`), gzipSync(raw, { level: 9 }));
+  }
   await mkdir(CACHE, { recursive: true });
   await writeFile(mark, id);
   return true;

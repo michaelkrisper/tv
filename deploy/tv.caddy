@@ -4,14 +4,14 @@ tv.krisperapps.de {
 	# Programme API: a read-only Go service (tv-api.service). It compresses
 	# its answers and sets ETag and Cache-Control itself.
 	handle /api/* {
-		reverse_proxy 127.0.0.1:8811
+		reverse_proxy unix//run/tv-api.sock
 	}
 	# The page comes from the same service: it puts the lists of the default
 	# channels into it (servePage() in server/main.go). When the service does
 	# not answer, the plain file goes out instead (handle_errors below).
 	@page path / /index.html
 	handle @page {
-		reverse_proxy 127.0.0.1:8811
+		reverse_proxy unix//run/tv-api.sock
 	}
 	# Programme images built ahead: named after their source, never rewritten
 	# with other content and gone after a day or two.
@@ -21,15 +21,20 @@ tv.krisperapps.de {
 		file_server
 	}
 	handle {
-		# Always revalidate (ETag), so a deploy shows up at once.
+		# Always revalidate (ETag), so a deploy shows up at once. The build
+		# writes .br/.gz next to the text files: nothing is compressed per request.
 		header Cache-Control no-cache
-		file_server
+		file_server {
+			precompressed br gzip
+		}
 	}
 	handle_errors 502 503 504 {
 		handle @page {
 			header Cache-Control no-cache
 			rewrite * /index.html
-			file_server
+			file_server {
+				precompressed br gzip
+			}
 		}
 	}
 }
