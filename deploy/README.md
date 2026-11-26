@@ -7,6 +7,7 @@ message. These files install it.
 | ----------------------- | ---------------------------------------------------- |
 | `tv-build`              | `/usr/local/bin/tv-build` (replaces the current one) |
 | `tv-build-api.conf`     | `/etc/systemd/system/tv-build.service.d/api.conf`    |
+| `tv-api.socket`         | `/etc/systemd/system/tv-api.socket`                  |
 | `tv-api.service`        | `/etc/systemd/system/tv-api.service`                 |
 | `tv-api-deploy.path`    | `/etc/systemd/system/tv-api-deploy.path`             |
 | `tv-api-deploy.service` | `/etc/systemd/system/tv-api-deploy.service`          |
@@ -15,7 +16,8 @@ message. These files install it.
 How it fits together: `tv-build` (timer and deploy key, user `tv`) writes the
 programme file `/srv/apps/tv/tv.tsv` in one step and compiles `server/` to
 `/srv/apps/tv/tv-api` when its source changed (needs Go: `apt install golang-go`).
-`tv-api.service` runs that binary on `127.0.0.1:8811`, read-only, and loads a
+`tv-api.service` runs that binary on the unix socket `/run/tv-api.sock`
+(`tv-api.socket`, only Caddy may connect), read-only and without network, and loads a
 new programme file by itself; the path unit restarts it only when its code changed. Caddy sends `/api/*` and the page (`/`,
 `/index.html`, with the default channels' lists put in) to it and serves
 everything else from `/srv/www/tv`; when the service does not answer, Caddy
@@ -33,11 +35,11 @@ install -d -o tv -g tv -m 755 /srv/apps/tv
 install -m 755 tv-build /usr/local/bin/tv-build
 install -d /etc/systemd/system/tv-build.service.d
 install -m 644 tv-build-api.conf /etc/systemd/system/tv-build.service.d/api.conf
-install -m 644 tv-api.service tv-api-deploy.path tv-api-deploy.service /etc/systemd/system/
+install -m 644 tv-api.socket tv-api.service tv-api-deploy.path tv-api-deploy.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl start tv-build.service     # writes /srv/apps/tv/tv.tsv and tv-api
-systemctl enable --now tv-api.service tv-api-deploy.path
-curl -s 'http://127.0.0.1:8811/api/start?ch=orf1' | head -c 200; echo
+systemctl enable --now tv-api.socket tv-api-deploy.path
+curl -s --unix-socket /run/tv-api.sock 'http://tv/api/start?ch=orf1' | head -c 200; echo
 install -m 644 tv.caddy /etc/caddy/sites/tv.caddy
 caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
 curl -sI --compressed 'https://tv.krisperapps.de/api/start?ch=orf1'

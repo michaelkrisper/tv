@@ -1,20 +1,24 @@
 # /etc/systemd/system/tv-api.service
 [Unit]
 Description=tv programme API (read-only, tv.krisperapps.de/api/)
-After=network.target
+# Caddy connects to the socket; systemd holds it, so requests wait during a
+# restart instead of failing.
+Requires=tv-api.socket
+After=tv-api.socket
 
 [Service]
 # No account of its own: the service only reads world-readable files
 # (its binary, the programme and the page).
 DynamicUser=yes
 # GOMEMLIMIT: collect garbage well below MemoryMax, also while a new file is loaded.
-Environment=TV_DATA=/srv/apps/tv/tv.tsv TV_HTML=/srv/www/tv/index.html PORT=8811 GOMEMLIMIT=128MiB
+Environment=TV_DATA=/srv/apps/tv/tv.tsv TV_HTML=/srv/www/tv/index.html GOMEMLIMIT=128MiB
 ExecStart=/srv/apps/tv/tv-api
 Restart=on-failure
 RestartSec=2
 MemoryMax=256M
 
-# Sandbox: read-only file system, loopback only (Caddy is the only client).
+# Sandbox: read-only file system, no network at all: the only connection is
+# the unix socket systemd passes in (Caddy is the only client).
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
@@ -27,9 +31,9 @@ ProtectControlGroups=yes
 ProtectClock=yes
 ProtectHostname=yes
 ProtectProc=invisible
+PrivateNetwork=yes
 IPAddressDeny=any
-IPAddressAllow=localhost
-RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictAddressFamilies=AF_UNIX
 RestrictNamespaces=yes
 RestrictRealtime=yes
 RestrictSUIDSGID=yes

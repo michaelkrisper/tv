@@ -752,14 +752,25 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request, a answer, cache, 
 	}
 }
 
+// The socket systemd passes in (tv-api.socket), else 127.0.0.1:PORT.
+func listen() (net.Listener, error) {
+	if os.Getenv("LISTEN_FDS") == "1" && os.Getenv("LISTEN_PID") == strconv.Itoa(os.Getpid()) {
+		return net.FileListener(os.NewFile(3, "socket"))
+	}
+	port, err := strconv.Atoi(os.Getenv("PORT"))
+	if err != nil {
+		return nil, fmt.Errorf("PORT or a socket from systemd is required")
+	}
+	return net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(port))
+}
+
 func main() {
 	file := os.Getenv("TV_DATA")
-	port, err := strconv.Atoi(os.Getenv("PORT"))
-	if file == "" || err != nil {
-		log.Fatal("TV_DATA and PORT are required")
+	if file == "" {
+		log.Fatal("TV_DATA is required")
 	}
 	log.SetFlags(0)
-	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(port))
+	ln, err := listen()
 	if err != nil {
 		log.Fatal(err)
 	}
