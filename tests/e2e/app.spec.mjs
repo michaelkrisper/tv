@@ -224,12 +224,9 @@ test.describe('iOS home screen app', () => {
     await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
   });
 
-  test('platform and launch images', async ({ page, request }) => {
+  test('platform, and no launch image that would delay the page', async ({ page }) => {
     await expect(page.locator('html')).toHaveAttribute('data-os', 'ios');
-    const links = page.locator('link[rel=apple-touch-startup-image]');
-    expect(await links.count()).toBeGreaterThan(10);
-    const res = await request.get(await links.first().getAttribute('href'));
-    expect(res.headers()['content-type']).toContain('image/png');
+    await expect(page.locator('link[rel=apple-touch-startup-image]')).toHaveCount(0);
   });
 
   test('swipe from the left edge: short drag stays, long drag closes', async ({ page }) => {
