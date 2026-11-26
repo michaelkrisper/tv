@@ -32,8 +32,10 @@ tv.krisperapps.de {
 		handle @page {
 			header Cache-Control no-cache
 			rewrite * /index.html
+			# Otherwise it would keep the error's status.
 			file_server {
 				precompressed br gzip
+				status 200
 			}
 		}
 	}
