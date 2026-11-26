@@ -4,11 +4,11 @@ Description=tv programme API (read-only, tv.krisperapps.de/api/)
 After=network.target
 
 [Service]
-# No account of its own: the service only reads two world-readable files
-# (its binary and the programme).
+# No account of its own: the service only reads world-readable files
+# (its binary, the programme and the page).
 DynamicUser=yes
 # GOMEMLIMIT: collect garbage well below MemoryMax, also while a new file is loaded.
-Environment=TV_DATA=/srv/apps/tv/tv.tsv PORT=8811 GOMEMLIMIT=128MiB
+Environment=TV_DATA=/srv/apps/tv/tv.tsv TV_HTML=/srv/www/tv/index.html PORT=8811 GOMEMLIMIT=128MiB
 ExecStart=/srv/apps/tv/tv-api
 Restart=on-failure
 RestartSec=2
@@ -43,7 +43,7 @@ SystemCallArchitectures=native
 RemoveIPC=yes
 UMask=0077
 TasksMax=64
-InaccessiblePaths=-/etc/caddy -/var/lib/caddy -/srv/www -/srv/build -/root
+InaccessiblePaths=-/etc/caddy -/var/lib/caddy -/srv/build -/root
 
 [Install]
 WantedBy=multi-user.target

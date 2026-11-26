@@ -239,7 +239,7 @@ func (c client) do(method, path string, headers ...string) (*http.Response, []by
 
 func serve(t *testing.T, file string, now *int64) client {
 	t.Helper()
-	server := httptest.NewServer(newHandler(file, func() int64 { return *now }))
+	server := httptest.NewServer(newHandler(file, "", func() int64 { return *now }))
 	t.Cleanup(server.Close)
 	return client{t, server.URL}
 }
@@ -350,7 +350,7 @@ func TestHTTP(t *testing.T) {
 func TestCacheIsBounded(t *testing.T) {
 	now := at(12, 0)
 	file := fill(t, filepath.Join(t.TempDir(), "a.tsv"), 1000)
-	h := newHandler(file, func() int64 { return now })
+	h := newHandler(file, "", func() int64 { return now })
 	for i := 0; i < maxCached+50; i++ {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest("GET", fmt.Sprintf("/api/start?ch=c%d", i), nil))
@@ -365,4 +365,85 @@ func TestNoData(t *testing.T) {
 	res, body := serve(t, filepath.Join(t.TempDir(), "missing.tsv"), &now).do("GET", "/api/start?ch=orf1")
 	eq(t, res.StatusCode, 503)
 	eq(t, string(body), `{"error":"unavailable"}`)
+}
+
+func writePage(t *testing.T, html string) string {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), "index.html")
+	if err := os.WriteFile(file, []byte(html), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+const testPage = "<p>a</p><!-- start --><script>\nconst DEFAULT = ['orf1','arte',\n  'nope'];\n</script>"
+
+// The page carries the start answer for its default channels.
+func TestPage(t *testing.T) {
+	now := at(12, 0)
+	h := newHandler(fill(t, filepath.Join(t.TempDir(), "a.tsv"), 1000), writePage(t, testPage), func() int64 { return now })
+	server := httptest.NewServer(h)
+	t.Cleanup(server.Close)
+	c := client{t, server.URL}
+
+	res, body := c.do("GET", "/")
+	eq(t, res.StatusCode, 200)
+	eq(t, res.Header.Get("Content-Type"), "text/html; charset=utf-8")
+	eq(t, res.Header.Get("Cache-Control"), "no-cache")
+	html := string(body)
+	pre := `<p>a</p><script type="application/json" id="start">`
+	if !strings.HasPrefix(html, pre) || !strings.HasSuffix(html, "</script><script>\nconst DEFAULT = ['orf1','arte',\n  'nope'];\n</script>") {
+		t.Fatalf("page: %.200s", html)
+	}
+	data, _, _ := strings.Cut(html[len(pre):], "</script>")
+	got := parse[startAnswer](t, []byte(data))
+	eq(t, got.Built, int64(1000))
+	if got.Items["2026-01-11"]["orf1"] == nil || got.Items["2026-01-11"]["arte"] == nil || got.Items["2026-01-11"]["3+"] != nil {
+		t.Errorf("items: %v", got.Items)
+	}
+	// The same answer the API gives for these channels.
+	_, api := c.do("GET", "/api/start?ch=arte,nope,orf1")
+	eq(t, data, string(api))
+
+	etag := res.Header.Get("ETag")
+	same, _ := c.do("GET", "/index.html", "If-None-Match", etag)
+	eq(t, same.StatusCode, 304)
+	now += hour
+	next, _ := c.do("GET", "/", "If-None-Match", etag)
+	eq(t, next.StatusCode, 200)
+
+	res, _ = c.do("GET", "/", "Accept-Encoding", "br")
+	eq(t, res.Header.Get("Content-Encoding"), "br")
+}
+
+// Without data, or without the marker, the page goes out as it is.
+func TestPagePlain(t *testing.T) {
+	now := at(12, 0)
+	for _, tc := range []struct{ data, html string }{
+		{filepath.Join(t.TempDir(), "missing.tsv"), testPage},
+		{fill(t, filepath.Join(t.TempDir(), "a.tsv"), 1000), "<p>no marker</p>"},
+	} {
+		server := httptest.NewServer(newHandler(tc.data, writePage(t, tc.html), func() int64 { return now }))
+		res, body := client{t, server.URL}.do("GET", "/")
+		server.Close()
+		eq(t, res.StatusCode, 200)
+		eq(t, string(body), tc.html)
+	}
+}
+
+func TestPageEscapes(t *testing.T) {
+	p := &page{all: []byte("ab"), head: []byte("a"), tail: []byte("b")}
+	a := p.with(answer{status: 200, etag: "x", body: func() []byte { return []byte(`{"t":"</script>"}`) }})
+	eq(t, string(a.body()), `a<script type="application/json" id="start">{"t":"<\/script>"}</script>b`)
+}
+
+// The real page has the marker and default channels the server can read.
+func TestRealPage(t *testing.T) {
+	p, err := readPage("../src/index.html", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.tail == nil || len(p.ids) < 10 {
+		t.Fatalf("marker or DEFAULT not found: %d ids", len(p.ids))
+	}
 }
