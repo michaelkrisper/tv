@@ -26,7 +26,6 @@ tv.krisperapps.de {
 		file_server
 	}
 	handle_errors 502 503 504 {
-		@page path / /index.html
 		handle @page {
 			header Cache-Control no-cache
 			rewrite * /index.html
