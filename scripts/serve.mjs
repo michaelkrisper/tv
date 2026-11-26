@@ -1,6 +1,6 @@
 // Serves dist/ locally with gzip like the live site, so transfer sizes match
-// in tests too, and passes /api/ on to the API service, as Caddy does: the
-// binary is built from server/ and started here. Port via PORT, default 8080.
+// in tests too, and passes /api/ and the page on to the API service, as Caddy
+// does: the binary is built from server/ and started here. Port via PORT, default 8080.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -26,7 +26,11 @@ const TEXT = new Set(['.html', '.js', '.json', '.webmanifest', '.svg']);
 
 execFileSync('go', ['build', '-o', BIN, '.'], { cwd: path('../server/'), stdio: 'inherit' });
 const api = spawn(BIN, [], {
-  env: { TV_DATA: process.env.TV_DATA || path('../.db/tv.tsv'), PORT: '0' },
+  env: {
+    TV_DATA: process.env.TV_DATA || path('../.db/tv.tsv'),
+    TV_HTML: join(DIST, 'index.html'),
+    PORT: '0',
+  },
   stdio: ['ignore', 'pipe', 'inherit'],
 });
 api.on('exit', (code) => process.exit(code ?? 1));
@@ -53,7 +57,7 @@ function proxy(req, res) {
 }
 
 createServer(async (req, res) => {
-  if (req.url.startsWith('/api/')) return proxy(req, res);
+  if (req.url.startsWith('/api/') || /^\/(index\.html)?(\?|$)/.test(req.url)) return proxy(req, res);
   let file = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname));
   if (file.endsWith('/')) file += 'index.html';
   const ext = extname(file);

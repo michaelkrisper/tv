@@ -7,6 +7,9 @@
 //	GET /api/details?ch=a,b,c   texts for the 20:15 items, their "Danach" and
 //	                            the next hours of today (idle prefetch)
 //	GET /api/day?ch=a&date=D    one channel, one whole day with texts (on tap)
+//	GET /                       the app's page (TV_HTML) with the /api/start
+//	                            answer for its default channels in it, so a
+//	                            first visit needs no second request
 //
 // Public and unauthenticated: no cookies, no user data, nothing is logged.
 // Every answer depends only on the build, the hour and the query, so it gets
@@ -25,6 +28,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -520,20 +524,22 @@ type cached struct {
 // loaded, and while it cannot be read the previous one keeps answering.
 type handler struct {
 	file  string
+	html  string // the page, optional
 	clock func() int64
 
 	mu      sync.Mutex
 	store   *store
 	stamp   string
 	lastErr string
+	pg      *page
 	// Answers only change with the build and the hour (both in the ETag), so the
 	// compressed body is kept per query and encoding; least recently used go first.
 	byKey map[string]*list.Element
 	lru   *list.List
 }
 
-func newHandler(file string, clock func() int64) *handler {
-	return &handler{file: file, clock: clock, byKey: map[string]*list.Element{}, lru: list.New()}
+func newHandler(file, html string, clock func() int64) *handler {
+	return &handler{file: file, html: html, clock: clock, byKey: map[string]*list.Element{}, lru: list.New()}
 }
 
 func (h *handler) current() (*store, error) {
@@ -602,6 +608,97 @@ func fail(w http.ResponseWriter, status int) {
 	fmt.Fprintf(w, `{"error":%q}`, text)
 }
 
+// ---- Page ------------------------------------------------------------------
+
+// The build leaves this marker in the page; the answer goes in its place.
+const marker = "<!-- start -->"
+
+// The default channels as the page itself defines them.
+var defaults = regexp.MustCompile(`const DEFAULT = \[([^\]]*)\]`)
+
+type page struct {
+	stamp      string
+	all        []byte
+	head, tail []byte // around the marker, nil without one
+	ids        []string
+}
+
+func readPage(file, stamp string) (*page, error) {
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	p := &page{stamp: stamp, all: b}
+	i := bytes.Index(b, []byte(marker))
+	m := defaults.FindSubmatch(b)
+	if i < 0 || m == nil {
+		return p, nil
+	}
+	ids := strings.Split(strings.NewReplacer("'", "", `"`, "", " ", "", "\n", "").Replace(string(m[1])), ",")
+	if ids = parseIDs(strings.Join(ids, ","), maxChannels); ids == nil {
+		return p, nil
+	}
+	p.head, p.tail, p.ids = b[:i], b[i+len(marker):], ids
+	return p, nil
+}
+
+// Like the programme file: looked at on every request, the previous version
+// keeps answering while a new one cannot be read.
+func (h *handler) page() (*page, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	info, err := os.Stat(h.html)
+	if err == nil {
+		if stamp := strconv.FormatInt(info.ModTime().UnixNano(), 36) + "-" + strconv.FormatInt(info.Size(), 36); h.pg == nil || stamp != h.pg.stamp {
+			var next *page
+			if next, err = readPage(h.html, stamp); err == nil {
+				h.pg = next
+			}
+		}
+	}
+	if err != nil && h.pg == nil {
+		return nil, err
+	}
+	return h.pg, nil
+}
+
+// The answer is put in as it is; only "</" is escaped so it cannot end the
+// script element.
+func (p *page) with(a answer) answer {
+	out := answer{status: 200, key: "page", etag: "p." + p.stamp}
+	if p.tail == nil || a.status != 200 {
+		out.body = func() []byte { return p.all }
+		return out
+	}
+	out.etag += "." + a.etag
+	out.body = func() []byte {
+		data := bytes.ReplaceAll(a.body(), []byte("</"), []byte(`<\/`))
+		b := make([]byte, 0, len(p.head)+len(data)+len(p.tail)+64)
+		b = append(b, p.head...)
+		b = append(b, `<script type="application/json" id="start">`...)
+		b = append(b, data...)
+		b = append(b, "</script>"...)
+		return append(b, p.tail...)
+	}
+	return out
+}
+
+func (h *handler) servePage(w http.ResponseWriter, r *http.Request) {
+	p, err := h.page()
+	if err != nil {
+		fail(w, 503)
+		return
+	}
+	a := answer{status: 503}
+	if s, err := h.current(); err == nil && p.ids != nil {
+		a = route(s, "/api/start", "ch="+strings.Join(p.ids, ","), h.clock())
+	}
+	// Always revalidated, like every other file of the app.
+	h.send(w, r, p.with(a), "no-cache", "text/html; charset=utf-8")
+}
+
+// ---- HTTP ------------------------------------------------------------------
+
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
@@ -610,6 +707,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(r.RequestURI) > maxURL {
 		fail(w, 414)
+		return
+	}
+	if h.html != "" && (r.URL.Path == "/" || r.URL.Path == "/index.html") {
+		h.servePage(w, r)
 		return
 	}
 	s, err := h.current()
@@ -622,13 +723,17 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, a.status)
 		return
 	}
+	h.send(w, r, a, "public, max-age="+strconv.Itoa(a.maxAge), "application/json")
+}
+
+func (h *handler) send(w http.ResponseWriter, r *http.Request, a answer, cache, typ string) {
 	enc := encoding(r.Header.Get("Accept-Encoding"))
 	etag := `"` + a.etag + `"`
 	if enc != "" {
 		etag = `"` + a.etag + "." + enc + `"`
 	}
 	head := w.Header()
-	head.Set("Cache-Control", "public, max-age="+strconv.Itoa(a.maxAge))
+	head.Set("Cache-Control", cache)
 	head.Set("ETag", etag)
 	head.Set("Vary", "Accept-Encoding")
 	if matches(r.Header.Get("If-None-Match"), etag) {
@@ -639,7 +744,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if enc != "" {
 		head.Set("Content-Encoding", enc)
 	}
-	head.Set("Content-Type", "application/json")
+	head.Set("Content-Type", typ)
 	head.Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(200)
 	if r.Method != http.MethodHead {
@@ -659,7 +764,7 @@ func main() {
 		log.Fatal(err)
 	}
 	server := &http.Server{
-		Handler:           newHandler(file, func() int64 { return time.Now().UnixMilli() }),
+		Handler:           newHandler(file, os.Getenv("TV_HTML"), func() int64 { return time.Now().UnixMilli() }),
 		MaxHeaderBytes:    8192,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       5 * time.Second,

@@ -240,6 +240,7 @@ input[type=search]{width:100%;font:inherit;padding:10px 12px;border-radius:10px;
   </div>
 </dialog>
 
+<!-- start -->
 <script>
 'use strict';
 const DEFAULT = ['orf1','orf2','tlc','tele5','prosieben','rtlzwei','puls4','zdfneo','n24doku','arte','servustv','superrtl','atvii','sixx','kabeleins','atv','sat1','3sat','daserste','ntv','rtl','zdf','orfiii','prosiebenmaxx'];
@@ -568,6 +569,16 @@ function snapshot() {
   try {
     const l = JSON.parse(localStorage.getItem(SNAP));
     if (l?.q === chQuery() && l.days.includes(localIso())) return l;
+  } catch {}
+  return null;
+}
+// A first visit: the server puts the answer for the default channels into the
+// page (servePage() in server/main.go).
+function embedded() {
+  if (mine) return null;
+  try {
+    const l = JSON.parse($('#start')?.textContent || 'null');
+    if (l?.days.includes(localIso())) return { ...l, q: chQuery() };
   } catch {}
   return null;
 }
@@ -1052,7 +1063,7 @@ function tick() {
 }
 setInterval(() => { if (document.visibilityState === 'visible' && list) tick(); }, 20000);
 
-{ const l = snapshot(); if (l) applyList(l, false); }
+{ const l = snapshot(); if (l) applyList(l, false); else { const e = embedded(); if (e) applyList(e); } }
 refresh().then(() => idle(prefetch));
 // Back in the app: rebuild the list only after a day change (labels, views);
 // otherwise only what depends on the time.

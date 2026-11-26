@@ -56,6 +56,10 @@ npm run test:e2e                  # Playwright against dist/ (port 8081); build 
   idle, `api/day?ch=&date=` = one whole day on tap. Answers depend only on build, hour and
   query, hence the ETag without building the answer. `FORMAT` (`data.mjs`) and `format`
   (`main.go`) must change together.
+  The service also serves the page (`/`, `TV_HTML`): it puts the `api/start` answer for
+  the page's `const DEFAULT` channels in place of `<!-- start -->` (`#start`), so a first
+  visit draws the lists without a second request (`embedded()` in `src/index.html`).
+  Caddy falls back to the plain file when the service does not answer.
   Rows are positional arrays: the layout in `write()`/`writeSchedules()` and its reader
   in `src/index.html` must change together.
 - The client reads only the API (no static fallback since #38); when it fails, the list

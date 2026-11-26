@@ -16,8 +16,10 @@ How it fits together: `tv-build` (timer and deploy key, user `tv`) writes the
 programme file `/srv/apps/tv/tv.tsv` in one step and compiles `server/` to
 `/srv/apps/tv/tv-api` when its source changed (needs Go: `apt install golang-go`).
 `tv-api.service` runs that binary on `127.0.0.1:8811`, read-only, and loads a
-new programme file by itself; the path unit restarts it only when its code changed. Caddy sends `/api/*` to it and serves
-everything else from `/srv/www/tv` as before.
+new programme file by itself; the path unit restarts it only when its code changed. Caddy sends `/api/*` and the page (`/`,
+`/index.html`, with the default channels' lists put in) to it and serves
+everything else from `/srv/www/tv`; when the service does not answer, Caddy
+serves the plain page from there.
 
 ## Install
 

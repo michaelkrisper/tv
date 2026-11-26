@@ -6,6 +6,13 @@ tv.krisperapps.de {
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8811
 	}
+	# The page comes from the same service: it puts the lists of the default
+	# channels into it (servePage() in server/main.go). When the service does
+	# not answer, the plain file goes out instead (handle_errors below).
+	@page path / /index.html
+	handle @page {
+		reverse_proxy 127.0.0.1:8811
+	}
 	# Programme images built ahead: named after their source, never rewritten
 	# with other content and gone after a day or two.
 	@images path /img/t/* /img/h/*
@@ -17,5 +24,12 @@ tv.krisperapps.de {
 		# Always revalidate (ETag), so a deploy shows up at once.
 		header Cache-Control no-cache
 		file_server
+	}
+	handle_errors 502 503 504 {
+		handle @page {
+			header Cache-Control no-cache
+			rewrite * /index.html
+			file_server
+		}
 	}
 }

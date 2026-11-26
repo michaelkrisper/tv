@@ -279,6 +279,8 @@ test.describe('Without the API', () => {
   test.use({ serviceWorkers: 'block' });
 
   test('a failing API shows a message instead of an empty list', async ({ page }) => {
+    // Not the default channels: the page itself carries their lists.
+    await page.addInitScript(() => localStorage.setItem('tv.channels.2', '["orf1","zdf"]'));
     await page.route('**/api/**', (r) => r.fulfill({ status: 503, body: '' }));
     await page.goto('./');
     await expect(page.locator('#list .msg')).toHaveText('Programm konnte nicht geladen werden.');
@@ -341,6 +343,14 @@ test.describe('Start from the last answer', () => {
     await page.reload();
     await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
     await expect(page.locator('#days button').nth(2)).toHaveText('Morgen');
+    await expect(page.locator('#list .msg')).toHaveCount(0);
+  });
+
+  test('a first visit draws the default channels from the page itself', async ({ page }) => {
+    await page.route('**/api/**', (r) => r.fulfill({ status: 503, body: '' }));
+    await page.goto('./');
+    await expect(page.locator('#start')).toHaveCount(1);
+    await expect(page.locator('#list .row[data-id]').first()).toBeVisible();
     await expect(page.locator('#list .msg')).toHaveCount(0);
   });
 
